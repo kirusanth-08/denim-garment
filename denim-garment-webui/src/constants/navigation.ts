@@ -1,9 +1,8 @@
-import { BarChart3, LayoutDashboard, ShoppingCart, Users } from 'lucide-react';
+import { CreditCard, Package2, Receipt, UserRound } from 'lucide-react';
 
 export const NAVIGATION_ITEMS = [
-  { label: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
-  { label: 'Orders', path: '/purchases', icon: ShoppingCart },
-  { label: 'Suppliers', path: '/suppliers', icon: Users },
-  { label: 'Insights', path: '/reports', icon: BarChart3 },
+  { label: 'Products', path: '/products', icon: Package2 },
+  { label: 'Payment', path: '/checkout', icon: CreditCard },
+  { label: 'Orders', path: '/orders', icon: Receipt },
+  { label: 'Profile', path: '/profile', icon: UserRound },
 ] as const;
-

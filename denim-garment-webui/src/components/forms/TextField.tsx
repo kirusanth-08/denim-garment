@@ -3,7 +3,7 @@ type TextFieldProps = {
   value: string;
   onChange: (value: string) => void;
   placeholder?: string;
-  type?: 'text' | 'email';
+  type?: 'text' | 'email' | 'password';
 };
 
 export const TextField = ({ label, value, onChange, placeholder, type = 'text' }: TextFieldProps) => (
@@ -18,4 +18,3 @@ export const TextField = ({ label, value, onChange, placeholder, type = 'text' }
     />
   </label>
 );
-
