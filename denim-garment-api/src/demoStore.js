@@ -12,6 +12,17 @@ export const STOCK_INCOME_STATUSES = ['Received', 'Quality Checked', 'Pending In
 export const PURCHASE_STATUSES = STOCK_INCOME_STATUSES;
 export const CUSTOMER_SHIPPING_METHODS = ['Standard Freight', 'Priority Dispatch', 'Store Pickup'];
 
+const SUPPLIER_NAME_MIN_LENGTH = 2;
+const SUPPLIER_NAME_MAX_LENGTH = 80;
+const SUPPLIER_CONTACT_MIN_LENGTH = 7;
+const SUPPLIER_CONTACT_MAX_LENGTH = 30;
+const SUPPLIER_EMAIL_MAX_LENGTH = 254;
+const SUPPLIER_EMAIL_LOCAL_MAX_LENGTH = 64;
+
+const SUPPLIER_NAME_PATTERN = /^[A-Za-z0-9&'().,/\- ]+$/;
+const SUPPLIER_CONTACT_PATTERN = /^\+?[0-9()\- ]+$/;
+const SUPPLIER_EMAIL_PATTERN = /^[a-z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-z0-9-]+(?:\.[a-z0-9-]+)+$/;
+
 const initialSupplierCatalog = [
   { id: 'SUP-001', name: 'Fabric World Ltd', contact: '+94 77 456 9001', email: 'info@fabricworld.com' },
   { id: 'SUP-002', name: 'Thread Masters', contact: '+94 71 320 4402', email: 'sales@threadmasters.com' },
@@ -400,30 +411,51 @@ const initialCustomerOrderLedger = [
 
 const monthFormatter = new Intl.DateTimeFormat('en-US', { month: 'short' });
 
-let purchaseLedger = initialStockIncomeLedger.map((purchase) => ({ ...purchase }));
-let supplierCatalog = initialSupplierCatalog.map((supplier) => ({ ...supplier }));
-let productCatalog = initialProductCatalog.map((product) => ({ ...product }));
-let adminAccounts = initialAdminAccounts.map((admin) => ({ ...admin }));
-let customerAccounts = initialCustomerAccounts.map((customer) => ({
-  ...customer,
-  addresses: {
-    shipping: createAddress(customer.addresses.shipping),
-    billing: createAddress(customer.addresses.billing),
-  },
-  paymentMethods: customer.paymentMethods.map((paymentMethod) => ({ ...paymentMethod })),
-}));
-let customerOrderLedger = initialCustomerOrderLedger.map((order) => ({
-  ...order,
-  shippingAddress: createAddress(order.shippingAddress),
-  billingAddress: createAddress(order.billingAddress),
-  paymentSummary: { ...order.paymentSummary },
-  items: order.items.map((item) => ({ ...item })),
-}));
+const seedStoreState = buildSeedStoreState();
+
+let purchaseLedger = seedStoreState.purchaseLedger;
+let supplierCatalog = seedStoreState.supplierCatalog;
+let productCatalog = seedStoreState.productCatalog;
+let adminAccounts = seedStoreState.adminAccounts;
+let customerAccounts = seedStoreState.customerAccounts;
+let customerOrderLedger = seedStoreState.customerOrderLedger;
 
 const customerSessions = new Map();
 const adminSessions = new Map();
 
+const cloneStoreValue = (value) => JSON.parse(JSON.stringify(value));
+
+function buildSeedStoreState() {
+  return {
+    purchaseLedger: initialStockIncomeLedger.map((purchase) => ({ ...purchase })),
+    supplierCatalog: initialSupplierCatalog.map((supplier) => ({ ...supplier })),
+    productCatalog: initialProductCatalog.map((product) => ({ ...product })),
+    adminAccounts: initialAdminAccounts.map((admin) => ({ ...admin })),
+    customerAccounts: initialCustomerAccounts.map((customer) => ({
+      ...customer,
+      addresses: {
+        shipping: createAddress(customer.addresses.shipping),
+        billing: createAddress(customer.addresses.billing),
+      },
+      paymentMethods: customer.paymentMethods.map((paymentMethod) => ({ ...paymentMethod })),
+    })),
+    customerOrderLedger: initialCustomerOrderLedger.map((order) => ({
+      ...order,
+      shippingAddress: createAddress(order.shippingAddress),
+      billingAddress: createAddress(order.billingAddress),
+      paymentSummary: { ...order.paymentSummary },
+      items: order.items.map((item) => ({ ...item })),
+    })),
+  };
+}
+
 const normalize = (value = '') => String(value).trim().toLowerCase();
+const normalizeWhitespace = (value = '') => String(value).trim().replace(/\s+/g, ' ');
+const normalizeSupplierName = (value) => normalizeWhitespace(value);
+const normalizeSupplierContact = (value) => normalizeWhitespace(value);
+const normalizeSupplierEmail = (value) => String(value).trim().toLowerCase();
+const canonicalizeSupplierName = (value) => normalizeSupplierName(value).toLowerCase();
+const canonicalizeSupplierEmail = (value) => normalizeSupplierEmail(value);
 const hasOwn = (value, key) => Object.prototype.hasOwnProperty.call(value, key);
 const formatCurrency = (value) => `Rs. ${Math.round(value).toLocaleString('en-US')}`;
 const formatCompactCurrency = (value) => `Rs. ${Math.round(value / 1000)}K`;
@@ -508,6 +540,83 @@ const ensureEmail = (value, fieldName = 'Email') => {
   return email;
 };
 
+const ensureSupplierName = (value, fieldName = 'Supplier name') => {
+  const name = normalizeSupplierName(ensureRequiredText(value, fieldName));
+
+  if (name.length < SUPPLIER_NAME_MIN_LENGTH || name.length > SUPPLIER_NAME_MAX_LENGTH) {
+    throw new HttpError(
+      400,
+      `${fieldName} must be between ${SUPPLIER_NAME_MIN_LENGTH} and ${SUPPLIER_NAME_MAX_LENGTH} characters.`,
+    );
+  }
+
+  if (!SUPPLIER_NAME_PATTERN.test(name)) {
+    throw new HttpError(400, `${fieldName} contains unsupported characters.`);
+  }
+
+  return name;
+};
+
+const ensureSupplierContact = (value, fieldName = 'Supplier contact') => {
+  const contact = normalizeSupplierContact(ensureRequiredText(value, fieldName));
+
+  if (contact.length < SUPPLIER_CONTACT_MIN_LENGTH || contact.length > SUPPLIER_CONTACT_MAX_LENGTH) {
+    throw new HttpError(
+      400,
+      `${fieldName} must be between ${SUPPLIER_CONTACT_MIN_LENGTH} and ${SUPPLIER_CONTACT_MAX_LENGTH} characters.`,
+    );
+  }
+
+  if (!SUPPLIER_CONTACT_PATTERN.test(contact)) {
+    throw new HttpError(
+      400,
+      `${fieldName} must contain only digits, spaces, parentheses, hyphens, and an optional leading +.`,
+    );
+  }
+
+  const digitCount = contact.replace(/\D/g, '').length;
+  if (digitCount < 7 || digitCount > 15) {
+    throw new HttpError(400, `${fieldName} must include 7 to 15 digits.`);
+  }
+
+  return contact;
+};
+
+const ensureSupplierEmail = (value, fieldName = 'Supplier email') => {
+  const email = normalizeSupplierEmail(ensureRequiredText(value, fieldName));
+
+  if (email.length > SUPPLIER_EMAIL_MAX_LENGTH) {
+    throw new HttpError(400, `${fieldName} must be no more than ${SUPPLIER_EMAIL_MAX_LENGTH} characters.`);
+  }
+
+  const [localPart = '', domainPart = '', ...rest] = email.split('@');
+
+  if (rest.length > 0 || !localPart || !domainPart) {
+    throw new HttpError(400, `${fieldName} must be a valid email address.`);
+  }
+
+  if (localPart.length > SUPPLIER_EMAIL_LOCAL_MAX_LENGTH) {
+    throw new HttpError(
+      400,
+      `${fieldName} local part must be no more than ${SUPPLIER_EMAIL_LOCAL_MAX_LENGTH} characters.`,
+    );
+  }
+
+  if (!SUPPLIER_EMAIL_PATTERN.test(email)) {
+    throw new HttpError(400, `${fieldName} must be a valid email address.`);
+  }
+
+  const hasInvalidDomainLabel = domainPart
+    .split('.')
+    .some((label) => label.length === 0 || label.startsWith('-') || label.endsWith('-'));
+
+  if (hasInvalidDomainLabel) {
+    throw new HttpError(400, `${fieldName} must contain a valid domain.`);
+  }
+
+  return email;
+};
+
 const ensureBoolean = (value, fieldName) => {
   if (typeof value !== 'boolean') {
     throw new HttpError(400, `${fieldName} must be true or false.`);
@@ -521,7 +630,8 @@ const ensureSupplier = (value) => {
     throw new HttpError(400, 'Supplier is required.');
   }
 
-  const match = supplierCatalog.find((supplier) => supplier.name === value.trim());
+  const supplierName = canonicalizeSupplierName(value);
+  const match = supplierCatalog.find((supplier) => canonicalizeSupplierName(supplier.name) === supplierName);
   if (!match) {
     throw new HttpError(400, 'Supplier must match an existing supplier.');
   }
@@ -586,18 +696,25 @@ const validateSupplierInput = (payload, { partial = false } = {}) => {
     throw new HttpError(400, 'Supplier payload must be an object.');
   }
 
+  const allowedKeys = ['name', 'contact', 'email'];
+  const unknownKeys = Object.keys(payload).filter((key) => !allowedKeys.includes(key));
+
+  if (unknownKeys.length > 0) {
+    throw new HttpError(400, `Unknown supplier fields: ${unknownKeys.join(', ')}.`);
+  }
+
   const result = {};
 
   if (!partial || hasOwn(payload, 'name')) {
-    result.name = ensureRequiredText(payload.name, 'Supplier name');
+    result.name = ensureSupplierName(payload.name, 'Supplier name');
   }
 
   if (!partial || hasOwn(payload, 'contact')) {
-    result.contact = ensureRequiredText(payload.contact, 'Supplier contact');
+    result.contact = ensureSupplierContact(payload.contact, 'Supplier contact');
   }
 
   if (!partial || hasOwn(payload, 'email')) {
-    result.email = ensureEmail(payload.email, 'Supplier email');
+    result.email = ensureSupplierEmail(payload.email, 'Supplier email');
   }
 
   if (partial && Object.keys(result).length === 0) {
@@ -997,6 +1114,52 @@ const normalizeCustomerPaymentMethods = (paymentMethods, defaultPaymentMethodId)
   }));
 };
 
+const getRuntimeStoreState = () => ({
+  purchaseLedger,
+  supplierCatalog,
+  productCatalog,
+  adminAccounts,
+  customerAccounts,
+  customerOrderLedger,
+});
+
+const applyHydratedStoreState = (state) => {
+  if (!state || typeof state !== 'object' || Array.isArray(state)) {
+    return;
+  }
+
+  if (Array.isArray(state.purchaseLedger)) {
+    purchaseLedger = cloneStoreValue(state.purchaseLedger);
+  }
+
+  if (Array.isArray(state.supplierCatalog)) {
+    supplierCatalog = cloneStoreValue(state.supplierCatalog);
+  }
+
+  if (Array.isArray(state.productCatalog)) {
+    productCatalog = cloneStoreValue(state.productCatalog);
+  }
+
+  if (Array.isArray(state.adminAccounts)) {
+    adminAccounts = cloneStoreValue(state.adminAccounts);
+  }
+
+  if (Array.isArray(state.customerAccounts)) {
+    customerAccounts = cloneStoreValue(state.customerAccounts);
+  }
+
+  if (Array.isArray(state.customerOrderLedger)) {
+    customerOrderLedger = cloneStoreValue(state.customerOrderLedger);
+  }
+
+  adminSessions.clear();
+  customerSessions.clear();
+};
+
+export const getSeedState = () => cloneStoreValue(buildSeedStoreState());
+export const getStoreState = () => cloneStoreValue(getRuntimeStoreState());
+export const hydrateStoreState = (state) => applyHydratedStoreState(state);
+
 export const getStorefrontLanding = () => {
   const featuredProducts = productCatalog.filter((product) => product.featured).slice(0, 4).map(mapProductRecord);
   const totalUnits = productCatalog.reduce((sum, product) => sum + product.availableUnits, 0);
@@ -1082,12 +1245,16 @@ export const getSuppliers = ({ query = '' } = {}) => {
 export const createSupplier = (payload) => {
   const nextValues = validateSupplierInput(payload);
 
-  const duplicateName = supplierCatalog.find((supplier) => normalize(supplier.name) === normalize(nextValues.name));
+  const duplicateName = supplierCatalog.find(
+    (supplier) => canonicalizeSupplierName(supplier.name) === canonicalizeSupplierName(nextValues.name),
+  );
   if (duplicateName) {
     throw new HttpError(400, 'Supplier name is already in use.');
   }
 
-  const duplicateEmail = supplierCatalog.find((supplier) => normalize(supplier.email) === normalize(nextValues.email));
+  const duplicateEmail = supplierCatalog.find(
+    (supplier) => canonicalizeSupplierEmail(supplier.email) === canonicalizeSupplierEmail(nextValues.email),
+  );
   if (duplicateEmail) {
     throw new HttpError(400, 'Supplier email is already in use.');
   }
@@ -1112,24 +1279,30 @@ export const updateSupplier = (supplierId, payload) => {
   const existingSupplier = supplierCatalog[targetIndex];
   const updates = validateSupplierInput(payload, { partial: true });
 
-  if (updates.name && normalize(updates.name) !== normalize(existingSupplier.name)) {
+  if (updates.name && canonicalizeSupplierName(updates.name) !== canonicalizeSupplierName(existingSupplier.name)) {
     const duplicateName = supplierCatalog.find(
-      (supplier) => supplier.id !== existingSupplier.id && normalize(supplier.name) === normalize(updates.name),
+      (supplier) =>
+        supplier.id !== existingSupplier.id &&
+        canonicalizeSupplierName(supplier.name) === canonicalizeSupplierName(updates.name),
     );
 
     if (duplicateName) {
       throw new HttpError(400, 'Supplier name is already in use.');
     }
 
-    const hasStockHistory = purchaseLedger.some((entry) => entry.supplier === existingSupplier.name);
+    const hasStockHistory = purchaseLedger.some(
+      (entry) => canonicalizeSupplierName(entry.supplier) === canonicalizeSupplierName(existingSupplier.name),
+    );
     if (hasStockHistory) {
       throw new HttpError(400, 'Supplier name cannot be changed because stock income history already exists.');
     }
   }
 
-  if (updates.email && normalize(updates.email) !== normalize(existingSupplier.email)) {
+  if (updates.email && canonicalizeSupplierEmail(updates.email) !== canonicalizeSupplierEmail(existingSupplier.email)) {
     const duplicateEmail = supplierCatalog.find(
-      (supplier) => supplier.id !== existingSupplier.id && normalize(supplier.email) === normalize(updates.email),
+      (supplier) =>
+        supplier.id !== existingSupplier.id &&
+        canonicalizeSupplierEmail(supplier.email) === canonicalizeSupplierEmail(updates.email),
     );
 
     if (duplicateEmail) {
@@ -1154,7 +1327,9 @@ export const deleteSupplier = (supplierId) => {
     throw new HttpError(404, 'Supplier not found.');
   }
 
-  const hasStockHistory = purchaseLedger.some((entry) => entry.supplier === supplier.name);
+  const hasStockHistory = purchaseLedger.some(
+    (entry) => canonicalizeSupplierName(entry.supplier) === canonicalizeSupplierName(supplier.name),
+  );
   if (hasStockHistory) {
     throw new HttpError(400, 'Cannot delete supplier with stock income history.');
   }

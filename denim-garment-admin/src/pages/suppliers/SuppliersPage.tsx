@@ -24,32 +24,111 @@ type SupplierFormValues = {
   email: string;
 };
 
+const SUPPLIER_NAME_MIN_LENGTH = 2;
+const SUPPLIER_NAME_MAX_LENGTH = 80;
+const SUPPLIER_CONTACT_MIN_LENGTH = 7;
+const SUPPLIER_CONTACT_MAX_LENGTH = 30;
+const SUPPLIER_EMAIL_MAX_LENGTH = 254;
+const SUPPLIER_EMAIL_LOCAL_MAX_LENGTH = 64;
+
+const SUPPLIER_NAME_PATTERN = /^[A-Za-z0-9&'().,/\- ]+$/;
+const SUPPLIER_CONTACT_PATTERN = /^\+?[0-9()\- ]+$/;
+const SUPPLIER_EMAIL_PATTERN = /^[a-z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-z0-9-]+(?:\.[a-z0-9-]+)+$/;
+
+const normalizeSupplierName = (value: string) => value.trim().replace(/\s+/g, ' ');
+const normalizeSupplierContact = (value: string) => value.trim().replace(/\s+/g, ' ');
+const normalizeSupplierEmail = (value: string) => value.trim().toLowerCase();
+const canonicalizeSupplierName = (value: string) => normalizeSupplierName(value).toLowerCase();
+const canonicalizeSupplierEmail = (value: string) => normalizeSupplierEmail(value);
+
 const buildSupplierFormValues = (supplier?: Supplier): SupplierFormValues => ({
   name: supplier?.name ?? '',
   contact: supplier?.contact ?? '',
   email: supplier?.email ?? '',
 });
 
-const validateSupplierForm = (values: SupplierFormValues): SupplierFormValues | string => {
-  const name = values.name.trim();
-  const contact = values.contact.trim();
-  const email = values.email.trim();
-  const isEmailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+const validateSupplierForm = (
+  values: SupplierFormValues,
+  suppliers: Supplier[],
+  editingSupplier: Supplier | null,
+): SupplierFormValues | string => {
+  const name = normalizeSupplierName(values.name);
+  const contact = normalizeSupplierContact(values.contact);
+  const email = normalizeSupplierEmail(values.email);
 
   if (!name) {
     return 'Supplier name is required.';
+  }
+
+  if (name.length < SUPPLIER_NAME_MIN_LENGTH || name.length > SUPPLIER_NAME_MAX_LENGTH) {
+    return `Supplier name must be between ${SUPPLIER_NAME_MIN_LENGTH} and ${SUPPLIER_NAME_MAX_LENGTH} characters.`;
+  }
+
+  if (!SUPPLIER_NAME_PATTERN.test(name)) {
+    return 'Supplier name contains unsupported characters.';
   }
 
   if (!contact) {
     return 'Supplier contact is required.';
   }
 
+  if (contact.length < SUPPLIER_CONTACT_MIN_LENGTH || contact.length > SUPPLIER_CONTACT_MAX_LENGTH) {
+    return `Supplier contact must be between ${SUPPLIER_CONTACT_MIN_LENGTH} and ${SUPPLIER_CONTACT_MAX_LENGTH} characters.`;
+  }
+
+  if (!SUPPLIER_CONTACT_PATTERN.test(contact)) {
+    return 'Supplier contact must contain only digits, spaces, parentheses, hyphens, and an optional leading +.';
+  }
+
+  const digitCount = contact.replace(/\D/g, '').length;
+  if (digitCount < 7 || digitCount > 15) {
+    return 'Supplier contact must include 7 to 15 digits.';
+  }
+
   if (!email) {
     return 'Supplier email is required.';
   }
 
-  if (!isEmailValid) {
+  if (email.length > SUPPLIER_EMAIL_MAX_LENGTH) {
+    return `Supplier email must be no more than ${SUPPLIER_EMAIL_MAX_LENGTH} characters.`;
+  }
+
+  const localPart = email.split('@')[0] ?? '';
+  if (localPart.length > SUPPLIER_EMAIL_LOCAL_MAX_LENGTH) {
+    return `Supplier email local part must be no more than ${SUPPLIER_EMAIL_LOCAL_MAX_LENGTH} characters.`;
+  }
+
+  if (!SUPPLIER_EMAIL_PATTERN.test(email)) {
     return 'Supplier email must be a valid address.';
+  }
+
+  const domainPart = email.split('@')[1] ?? '';
+  const hasInvalidDomainLabel = domainPart
+    .split('.')
+    .some((label) => label.length === 0 || label.startsWith('-') || label.endsWith('-'));
+
+  if (hasInvalidDomainLabel) {
+    return 'Supplier email must contain a valid domain.';
+  }
+
+  const duplicateName = suppliers.find(
+    (supplier) =>
+      supplier.id !== editingSupplier?.id &&
+      canonicalizeSupplierName(supplier.name) === canonicalizeSupplierName(name),
+  );
+
+  if (duplicateName) {
+    return 'Supplier name is already in use.';
+  }
+
+  const duplicateEmail = suppliers.find(
+    (supplier) =>
+      supplier.id !== editingSupplier?.id &&
+      canonicalizeSupplierEmail(supplier.email) === canonicalizeSupplierEmail(email),
+  );
+
+  if (duplicateEmail) {
+    return 'Supplier email is already in use.';
   }
 
   return { name, contact, email };
@@ -120,7 +199,8 @@ export const SuppliersPage = () => {
     event.preventDefault();
     setFeedback(null);
 
-    const payload = validateSupplierForm(formValues);
+    const activeSupplier = editingSupplier;
+    const payload = validateSupplierForm(formValues, suppliers, activeSupplier);
     if (typeof payload === 'string') {
       setFormError(payload);
       return;
@@ -128,8 +208,6 @@ export const SuppliersPage = () => {
 
     setMutating(true);
     setFormError(null);
-
-    const activeSupplier = editingSupplier;
 
     try {
       if (activeSupplier) {
@@ -313,6 +391,8 @@ export const SuppliersPage = () => {
               onChange={(event) => updateFormField('name', event.target.value)}
               className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5 text-sm text-slate-900 outline-none"
               disabled={mutating}
+              maxLength={SUPPLIER_NAME_MAX_LENGTH}
+              autoComplete="organization"
               required
             />
           </div>
@@ -324,6 +404,9 @@ export const SuppliersPage = () => {
               onChange={(event) => updateFormField('contact', event.target.value)}
               className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5 text-sm text-slate-900 outline-none"
               disabled={mutating}
+              maxLength={SUPPLIER_CONTACT_MAX_LENGTH}
+              inputMode="tel"
+              autoComplete="tel"
               required
             />
           </div>
@@ -335,6 +418,8 @@ export const SuppliersPage = () => {
               onChange={(event) => updateFormField('email', event.target.value)}
               className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5 text-sm text-slate-900 outline-none"
               disabled={mutating}
+              maxLength={SUPPLIER_EMAIL_MAX_LENGTH}
+              autoComplete="email"
               required
             />
           </div>

@@ -22,6 +22,7 @@ import {
   updateSupplier,
   updateStockIncome,
 } from './demoStore.js';
+import { closeMongoBackedStore, initializeMongoBackedStore, persistStoreState } from './mongoPersistence.js';
 
 const app = express();
 const port = Number(process.env.PORT ?? 4000);
@@ -50,9 +51,9 @@ const handleError = (response, error) => {
   response.status(500).json({ message: 'Unexpected server error.' });
 };
 
-const runHandler = (handler) => (request, response) => {
+const runHandler = (handler) => async (request, response) => {
   try {
-    handler(request, response);
+    await handler(request, response);
   } catch (error) {
     handleError(response, error);
   }
@@ -127,25 +128,30 @@ app.get(
 
 app.post(
   '/api/stock-incomes',
-  runHandler((request, response) => {
+  runHandler(async (request, response) => {
     ensureAdminSession(request);
-    response.status(201).json(createStockIncome(request.body));
+    const createdStockIncome = createStockIncome(request.body);
+    await persistStoreState();
+    response.status(201).json(createdStockIncome);
   }),
 );
 
 app.patch(
   '/api/stock-incomes/:incomeId',
-  runHandler((request, response) => {
+  runHandler(async (request, response) => {
     ensureAdminSession(request);
-    response.json(updateStockIncome(request.params.incomeId, request.body));
+    const updatedStockIncome = updateStockIncome(request.params.incomeId, request.body);
+    await persistStoreState();
+    response.json(updatedStockIncome);
   }),
 );
 
 app.delete(
   '/api/stock-incomes/:incomeId',
-  runHandler((request, response) => {
+  runHandler(async (request, response) => {
     ensureAdminSession(request);
     deleteStockIncome(request.params.incomeId);
+    await persistStoreState();
     response.sendStatus(204);
   }),
 );
@@ -167,25 +173,30 @@ app.get(
 
 app.post(
   '/api/purchases',
-  runHandler((request, response) => {
+  runHandler(async (request, response) => {
     ensureAdminSession(request);
-    response.status(201).json(createStockIncome(request.body));
+    const createdStockIncome = createStockIncome(request.body);
+    await persistStoreState();
+    response.status(201).json(createdStockIncome);
   }),
 );
 
 app.patch(
   '/api/purchases/:orderId',
-  runHandler((request, response) => {
+  runHandler(async (request, response) => {
     ensureAdminSession(request);
-    response.json(updateStockIncome(request.params.orderId, request.body));
+    const updatedStockIncome = updateStockIncome(request.params.orderId, request.body);
+    await persistStoreState();
+    response.json(updatedStockIncome);
   }),
 );
 
 app.delete(
   '/api/purchases/:orderId',
-  runHandler((request, response) => {
+  runHandler(async (request, response) => {
     ensureAdminSession(request);
     deleteStockIncome(request.params.orderId);
+    await persistStoreState();
     response.sendStatus(204);
   }),
 );
@@ -206,25 +217,30 @@ app.get(
 
 app.post(
   '/api/suppliers',
-  runHandler((request, response) => {
+  runHandler(async (request, response) => {
     ensureAdminSession(request);
-    response.status(201).json(createSupplier(request.body));
+    const createdSupplier = createSupplier(request.body);
+    await persistStoreState();
+    response.status(201).json(createdSupplier);
   }),
 );
 
 app.patch(
   '/api/suppliers/:supplierId',
-  runHandler((request, response) => {
+  runHandler(async (request, response) => {
     ensureAdminSession(request);
-    response.json(updateSupplier(request.params.supplierId, request.body));
+    const updatedSupplier = updateSupplier(request.params.supplierId, request.body);
+    await persistStoreState();
+    response.json(updatedSupplier);
   }),
 );
 
 app.delete(
   '/api/suppliers/:supplierId',
-  runHandler((request, response) => {
+  runHandler(async (request, response) => {
     ensureAdminSession(request);
     deleteSupplier(request.params.supplierId);
+    await persistStoreState();
     response.sendStatus(204);
   }),
 );
@@ -263,13 +279,14 @@ app.get(
 
 app.patch(
   '/api/customer/profile',
-  runHandler((request, response) => {
-    response.json(
-      updateCustomerProfile({
-        token: getCustomerBearerToken(request),
-        payload: request.body,
-      }),
-    );
+  runHandler(async (request, response) => {
+    const updatedCustomer = updateCustomerProfile({
+      token: getCustomerBearerToken(request),
+      payload: request.body,
+    });
+
+    await persistStoreState();
+    response.json(updatedCustomer);
   }),
 );
 
@@ -313,16 +330,42 @@ app.get(
 
 app.post(
   '/api/customer/orders',
-  runHandler((request, response) => {
-    response.status(201).json(
-      createCustomerOrder({
-        token: getCustomerBearerToken(request),
-        payload: request.body,
-      }),
-    );
+  runHandler(async (request, response) => {
+    const createdCustomerOrder = createCustomerOrder({
+      token: getCustomerBearerToken(request),
+      payload: request.body,
+    });
+
+    await persistStoreState();
+    response.status(201).json(createdCustomerOrder);
   }),
 );
 
-app.listen(port, () => {
-  console.log(`denim-garment-api listening on http://localhost:${port}`);
+const startServer = async () => {
+  await initializeMongoBackedStore();
+
+  app.listen(port, () => {
+    console.log(`denim-garment-api listening on http://localhost:${port}`);
+  });
+};
+
+const shutdownServer = async () => {
+  try {
+    await closeMongoBackedStore();
+  } catch (error) {
+    console.error('Failed to close MongoDB connection cleanly.', error);
+  }
+};
+
+process.on('SIGINT', () => {
+  shutdownServer().finally(() => process.exit(0));
+});
+
+process.on('SIGTERM', () => {
+  shutdownServer().finally(() => process.exit(0));
+});
+
+startServer().catch((error) => {
+  console.error('Failed to initialize MongoDB-backed API server.', error);
+  process.exit(1);
 });
