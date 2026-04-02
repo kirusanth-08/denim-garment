@@ -1,8 +1,10 @@
 import express from 'express';
 import {
   HttpError,
+  createSupplier,
   createStockIncome,
   createCustomerOrder,
+  deleteSupplier,
   deleteStockIncome,
   getCustomerOrder,
   getCustomerOrders,
@@ -17,6 +19,7 @@ import {
   loginAdmin,
   loginCustomer,
   updateCustomerProfile,
+  updateSupplier,
   updateStockIncome,
 } from './demoStore.js';
 
@@ -198,6 +201,31 @@ app.get(
         query: typeof query === 'string' ? query : '',
       }),
     );
+  }),
+);
+
+app.post(
+  '/api/suppliers',
+  runHandler((request, response) => {
+    ensureAdminSession(request);
+    response.status(201).json(createSupplier(request.body));
+  }),
+);
+
+app.patch(
+  '/api/suppliers/:supplierId',
+  runHandler((request, response) => {
+    ensureAdminSession(request);
+    response.json(updateSupplier(request.params.supplierId, request.body));
+  }),
+);
+
+app.delete(
+  '/api/suppliers/:supplierId',
+  runHandler((request, response) => {
+    ensureAdminSession(request);
+    deleteSupplier(request.params.supplierId);
+    response.sendStatus(204);
   }),
 );
 

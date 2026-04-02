@@ -1,8 +1,10 @@
+import { useState } from 'react';
 import { Bell, CircleUserRound, Search } from 'lucide-react';
 import { useAdminAuth } from '../context/AdminAuthContext';
 
 export const Topbar = () => {
   const { admin } = useAdminAuth();
+  const [showNotifications, setShowNotifications] = useState(false);
 
   return (
     <header className="flex items-center justify-between border-b border-slate-200/80 bg-white/90 px-4 py-3 backdrop-blur sm:px-5 lg:px-6">
@@ -12,9 +14,23 @@ export const Topbar = () => {
           <Search size={16} />
           <span className="text-sm">Search stock incomes, suppliers...</span>
         </div>
-        <button className="rounded-full border border-slate-200 p-1.5 text-slate-500 transition hover:bg-slate-50 hover:text-slate-700" aria-label="Notifications">
-          <Bell size={20} />
-        </button>
+        <div className="relative">
+          <button
+            type="button"
+            onClick={() => setShowNotifications((currentValue) => !currentValue)}
+            className="rounded-full border border-slate-200 p-1.5 text-slate-500 transition hover:bg-slate-50 hover:text-slate-700"
+            aria-label="Notifications"
+            aria-expanded={showNotifications}
+          >
+            <Bell size={20} />
+          </button>
+          {showNotifications ? (
+            <div className="absolute right-0 top-[calc(100%+8px)] z-20 w-[260px] rounded-xl border border-slate-200 bg-white p-3 shadow-xl">
+              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Notifications</p>
+              <p className="mt-2 text-sm text-slate-600">No new notifications. Stock intake actions are up to date.</p>
+            </div>
+          ) : null}
+        </div>
         <div className="hidden h-8 w-px bg-slate-200 sm:block" />
         <div className="flex items-center gap-3">
           <CircleUserRound size={34} className="text-accent" />

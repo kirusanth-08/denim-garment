@@ -12,7 +12,7 @@ export const STOCK_INCOME_STATUSES = ['Received', 'Quality Checked', 'Pending In
 export const PURCHASE_STATUSES = STOCK_INCOME_STATUSES;
 export const CUSTOMER_SHIPPING_METHODS = ['Standard Freight', 'Priority Dispatch', 'Store Pickup'];
 
-const supplierCatalog = [
+const initialSupplierCatalog = [
   { id: 'SUP-001', name: 'Fabric World Ltd', contact: '+94 77 456 9001', email: 'info@fabricworld.com' },
   { id: 'SUP-002', name: 'Thread Masters', contact: '+94 71 320 4402', email: 'sales@threadmasters.com' },
   { id: 'SUP-003', name: 'Button & Zip Co', contact: '+94 76 889 1770', email: 'orders@buttonzip.com' },
@@ -401,6 +401,7 @@ const initialCustomerOrderLedger = [
 const monthFormatter = new Intl.DateTimeFormat('en-US', { month: 'short' });
 
 let purchaseLedger = initialStockIncomeLedger.map((purchase) => ({ ...purchase }));
+let supplierCatalog = initialSupplierCatalog.map((supplier) => ({ ...supplier }));
 let productCatalog = initialProductCatalog.map((product) => ({ ...product }));
 let adminAccounts = initialAdminAccounts.map((admin) => ({ ...admin }));
 let customerAccounts = initialCustomerAccounts.map((customer) => ({
@@ -580,6 +581,32 @@ const validateStockIncomeInput = (payload, { partial = false } = {}) => {
   return result;
 };
 
+const validateSupplierInput = (payload, { partial = false } = {}) => {
+  if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
+    throw new HttpError(400, 'Supplier payload must be an object.');
+  }
+
+  const result = {};
+
+  if (!partial || hasOwn(payload, 'name')) {
+    result.name = ensureRequiredText(payload.name, 'Supplier name');
+  }
+
+  if (!partial || hasOwn(payload, 'contact')) {
+    result.contact = ensureRequiredText(payload.contact, 'Supplier contact');
+  }
+
+  if (!partial || hasOwn(payload, 'email')) {
+    result.email = ensureEmail(payload.email, 'Supplier email');
+  }
+
+  if (partial && Object.keys(result).length === 0) {
+    throw new HttpError(400, 'At least one supplier field must be provided.');
+  }
+
+  return result;
+};
+
 const validateAddress = (payload, fieldName) => {
   if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
     throw new HttpError(400, `${fieldName} must be an address object.`);
@@ -695,6 +722,16 @@ const createNextOrderId = () => {
   return `SI-${String(nextNumber).padStart(3, '0')}`;
 };
 
+const createNextSupplierId = () => {
+  const nextNumber =
+    supplierCatalog.reduce((max, supplier) => {
+      const parsed = Number(String(supplier.id).replace(/[^0-9]/g, ''));
+      return Number.isFinite(parsed) && parsed > max ? parsed : max;
+    }, 0) + 1;
+
+  return `SUP-${String(nextNumber).padStart(3, '0')}`;
+};
+
 const validateOrderItems = (items) => {
   if (!Array.isArray(items) || items.length === 0) {
     throw new HttpError(400, 'Order must include at least one product.');
@@ -775,6 +812,16 @@ const mapStockIncomeRecord = ({ totalValue, ...purchase }) => ({
   totalValue,
   total: formatCurrency(totalValue),
 });
+
+const mapSupplierRecord = (supplier, totalsBySupplier = getLedgerTotalsBySupplier()) => {
+  const totalStockIncome = formatCurrency(totalsBySupplier[supplier.name] ?? 0);
+
+  return {
+    ...supplier,
+    totalStockIncome,
+    totalPurchases: totalStockIncome,
+  };
+};
 
 const comparePurchaseDates = (left, right) => {
   const leftDate = parseDateInput(left.date)?.getTime() ?? 0;
@@ -1029,15 +1076,90 @@ export const getSuppliers = ({ query = '' } = {}) => {
 
       return [supplier.id, supplier.name, supplier.email].some((value) => normalize(value).includes(normalizedQuery));
     })
-    .map((supplier) => {
-      const totalStockIncome = formatCurrency(totalsBySupplier[supplier.name] ?? 0);
+    .map((supplier) => mapSupplierRecord(supplier, totalsBySupplier));
+};
 
-      return {
-        ...supplier,
-        totalStockIncome,
-        totalPurchases: totalStockIncome,
-      };
-    });
+export const createSupplier = (payload) => {
+  const nextValues = validateSupplierInput(payload);
+
+  const duplicateName = supplierCatalog.find((supplier) => normalize(supplier.name) === normalize(nextValues.name));
+  if (duplicateName) {
+    throw new HttpError(400, 'Supplier name is already in use.');
+  }
+
+  const duplicateEmail = supplierCatalog.find((supplier) => normalize(supplier.email) === normalize(nextValues.email));
+  if (duplicateEmail) {
+    throw new HttpError(400, 'Supplier email is already in use.');
+  }
+
+  const nextSupplier = {
+    id: createNextSupplierId(),
+    ...nextValues,
+  };
+
+  supplierCatalog = [...supplierCatalog, nextSupplier];
+
+  return mapSupplierRecord(nextSupplier);
+};
+
+export const updateSupplier = (supplierId, payload) => {
+  const targetIndex = supplierCatalog.findIndex((supplier) => supplier.id === supplierId);
+
+  if (targetIndex === -1) {
+    throw new HttpError(404, 'Supplier not found.');
+  }
+
+  const existingSupplier = supplierCatalog[targetIndex];
+  const updates = validateSupplierInput(payload, { partial: true });
+
+  if (updates.name && normalize(updates.name) !== normalize(existingSupplier.name)) {
+    const duplicateName = supplierCatalog.find(
+      (supplier) => supplier.id !== existingSupplier.id && normalize(supplier.name) === normalize(updates.name),
+    );
+
+    if (duplicateName) {
+      throw new HttpError(400, 'Supplier name is already in use.');
+    }
+
+    const hasStockHistory = purchaseLedger.some((entry) => entry.supplier === existingSupplier.name);
+    if (hasStockHistory) {
+      throw new HttpError(400, 'Supplier name cannot be changed because stock income history already exists.');
+    }
+  }
+
+  if (updates.email && normalize(updates.email) !== normalize(existingSupplier.email)) {
+    const duplicateEmail = supplierCatalog.find(
+      (supplier) => supplier.id !== existingSupplier.id && normalize(supplier.email) === normalize(updates.email),
+    );
+
+    if (duplicateEmail) {
+      throw new HttpError(400, 'Supplier email is already in use.');
+    }
+  }
+
+  const updatedSupplier = {
+    ...existingSupplier,
+    ...updates,
+  };
+
+  supplierCatalog = supplierCatalog.map((supplier, index) => (index === targetIndex ? updatedSupplier : supplier));
+
+  return mapSupplierRecord(updatedSupplier);
+};
+
+export const deleteSupplier = (supplierId) => {
+  const supplier = supplierCatalog.find((entry) => entry.id === supplierId);
+
+  if (!supplier) {
+    throw new HttpError(404, 'Supplier not found.');
+  }
+
+  const hasStockHistory = purchaseLedger.some((entry) => entry.supplier === supplier.name);
+  if (hasStockHistory) {
+    throw new HttpError(400, 'Cannot delete supplier with stock income history.');
+  }
+
+  supplierCatalog = supplierCatalog.filter((entry) => entry.id !== supplierId);
 };
 
 export const getDashboard = () => {
