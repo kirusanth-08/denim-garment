@@ -8,7 +8,7 @@ export const AppShell = () => {
       <Sidebar />
       <main className="flex min-h-screen min-w-0 flex-1 flex-col">
         <Topbar />
-        <div className="flex-1 px-4 py-6 sm:px-6 lg:px-8">
+        <div className="flex-1 px-4 py-5 sm:px-5 lg:px-6">
           <div className="mx-auto w-full max-w-7xl">
             <Outlet />
           </div>

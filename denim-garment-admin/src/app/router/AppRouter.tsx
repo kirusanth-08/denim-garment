@@ -11,20 +11,20 @@ import { LoginPage } from '../../pages/login/LoginPage';
 
 const LoadingScreen = ({ label }: { label: string }) => (
   <div className="grid min-h-screen place-items-center px-6">
-    <Card className="max-w-xl p-8 text-center">
-      <p className="text-sm font-semibold uppercase tracking-[0.24em] text-slate-500">Denim Garment Management</p>
-      <h1 className="mt-4 text-4xl font-semibold tracking-tight text-slate-950">Preparing admin workspace</h1>
-      <p className="mt-3 text-base text-slate-600">{label}</p>
+    <Card className="max-w-xl p-6 text-center">
+      <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Denim Garment Management</p>
+      <h1 className="mt-3 text-2xl font-semibold tracking-tight text-slate-950 sm:text-3xl">Preparing admin workspace</h1>
+      <p className="mt-2.5 text-sm text-slate-600">{label}</p>
     </Card>
   </div>
 );
 
 const AccessDenied = () => (
   <div className="grid min-h-screen place-items-center px-6">
-    <Card className="max-w-xl p-8 text-center">
-      <p className="text-sm font-semibold uppercase tracking-[0.24em] text-red-600">Restricted Access</p>
-      <h1 className="mt-4 text-4xl font-semibold tracking-tight text-slate-950">You do not have permission for this area.</h1>
-      <p className="mt-3 text-base text-slate-600">Sign in with an administrator role to access this management page.</p>
+    <Card className="max-w-xl p-6 text-center">
+      <p className="text-xs font-semibold uppercase tracking-[0.2em] text-red-600">Restricted Access</p>
+      <h1 className="mt-3 text-2xl font-semibold tracking-tight text-slate-950 sm:text-3xl">You do not have permission for this area.</h1>
+      <p className="mt-2.5 text-sm text-slate-600">Sign in with an administrator role to access this management page.</p>
     </Card>
   </div>
 );
