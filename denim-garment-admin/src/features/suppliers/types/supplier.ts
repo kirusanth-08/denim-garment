@@ -3,5 +3,6 @@ export type Supplier = {
   name: string;
   contact: string;
   email: string;
-  totalPurchases: string;
+  totalStockIncome: string;
+  totalPurchases?: string;
 };

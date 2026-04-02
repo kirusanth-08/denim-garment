@@ -8,17 +8,17 @@ import { Column, DataTable } from '../../components/tables/DataTable';
 import { Card } from '../../components/ui/Card';
 import { PageHeader } from '../../components/ui/PageHeader';
 import { PrimaryButton } from '../../components/ui/PrimaryButton';
-import { PURCHASE_STATUSES } from '../../constants/status';
-import { Purchase } from '../../features/purchases/types/purchase';
+import { STOCK_INCOME_STATUSES } from '../../constants/status';
+import { StockIncome } from '../../features/purchases/types/purchase';
 import { useApiResource } from '../../hooks/useApiResource';
 import { withQuery } from '../../lib/api';
 
-const columns: Column<Purchase>[] = [
-  { key: 'orderId', header: 'Order ID', render: (row) => row.orderId },
+const columns: Column<StockIncome>[] = [
+  { key: 'incomeId', header: 'Income ID', render: (row) => row.incomeId },
   { key: 'supplier', header: 'Supplier', render: (row) => row.supplier },
-  { key: 'date', header: 'Date', render: (row) => row.date },
-  { key: 'items', header: 'Items', render: (row) => row.items },
-  { key: 'total', header: 'Total', render: (row) => row.total },
+  { key: 'receivedDate', header: 'Received Date', render: (row) => row.receivedDate },
+  { key: 'materialLots', header: 'Material Lots', render: (row) => row.materialLots },
+  { key: 'stockValueLabel', header: 'Stock Value', render: (row) => row.stockValueLabel },
   { key: 'status', header: 'Status', render: (row) => <StatusBadge status={row.status} /> },
   { key: 'actions', header: 'Actions', align: 'right', render: () => <ActionIconGroup actions={['view', 'edit', 'delete']} /> },
 ];
@@ -28,40 +28,40 @@ export const PurchasesPage = () => {
   const [status, setStatus] = useState('All Status');
   const deferredQuery = useDeferredValue(query);
 
-  const requestPath = withQuery('/purchases', {
+  const requestPath = withQuery('/stock-incomes', {
     query: deferredQuery,
     status: status === 'All Status' ? undefined : status,
   });
 
-  const { data, loading, error } = useApiResource<Purchase[]>(requestPath);
-  const purchases = data ?? [];
+  const { data, loading, error } = useApiResource<StockIncome[]>(requestPath);
+  const stockIncomes = data ?? [];
 
   return (
     <div>
       <PageHeader
-        eyebrow="Purchase Management"
-        title="Purchases"
-        subtitle="Manage purchase orders"
-        action={<PrimaryButton><Plus size={22} /> New Purchase</PrimaryButton>}
+        eyebrow="Stock Intake Management"
+        title="Stock Incomes"
+        subtitle="Track incoming stock for denim garment production"
+        action={<PrimaryButton><Plus size={22} /> New Stock Income</PrimaryButton>}
       />
       <Card className="mb-6 p-4">
         <div className="grid gap-3 md:grid-cols-[1fr_200px]">
-          <SearchField value={query} onChange={setQuery} placeholder="Search by ID or supplier..." />
+          <SearchField value={query} onChange={setQuery} placeholder="Search by income ID or supplier..." />
           <SelectField
             value={status}
             onChange={setStatus}
-            options={[{ label: 'All Status', value: 'All Status' }, ...PURCHASE_STATUSES.map((s) => ({ label: s, value: s }))]}
+            options={[{ label: 'All Status', value: 'All Status' }, ...STOCK_INCOME_STATUSES.map((s) => ({ label: s, value: s }))]}
           />
         </div>
         <div className="mt-3 text-sm text-slate-500">
-          {loading ? 'Refreshing purchases from the demo API...' : `${purchases.length} purchase orders found.`}
+          {loading ? 'Refreshing stock incomes from the demo API...' : `${stockIncomes.length} stock income entries found.`}
         </div>
       </Card>
 
       {error && !data ? (
-        <Card className="p-6 text-base text-red-600">Could not load purchases. {error}</Card>
+        <Card className="p-6 text-base text-red-600">Could not load stock incomes. {error}</Card>
       ) : (
-        <DataTable columns={columns} rows={purchases} emptyMessage="No purchase orders match your current filters." />
+        <DataTable columns={columns} rows={stockIncomes} emptyMessage="No stock incomes match your current filters." />
       )}
     </div>
   );

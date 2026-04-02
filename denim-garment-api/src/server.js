@@ -1,21 +1,23 @@
 import express from 'express';
 import {
   HttpError,
+  createStockIncome,
   createCustomerOrder,
-  createPurchase,
-  deletePurchase,
+  deleteStockIncome,
   getCustomerOrder,
   getCustomerOrders,
+  getAdminProfile,
   getCustomerProfile,
   getDashboard,
   getProducts,
-  getPurchases,
+  getStockIncomes,
   getReports,
   getStorefrontLanding,
   getSuppliers,
+  loginAdmin,
   loginCustomer,
   updateCustomerProfile,
-  updatePurchase,
+  updateStockIncome,
 } from './demoStore.js';
 
 const app = express();
@@ -53,15 +55,18 @@ const runHandler = (handler) => (request, response) => {
   }
 };
 
-const getBearerToken = (request) => {
+const getBearerToken = (request, loginRequiredMessage) => {
   const authorization = request.headers.authorization;
 
   if (!authorization || !authorization.startsWith('Bearer ')) {
-    throw new HttpError(401, 'Customer login required.');
+    throw new HttpError(401, loginRequiredMessage);
   }
 
   return authorization.slice(7).trim();
 };
+
+const getCustomerBearerToken = (request) => getBearerToken(request, 'Customer login required.');
+const getAdminBearerToken = (request) => getBearerToken(request, 'Admin login required.');
 
 app.get('/api/health', (_request, response) => {
   response.json({
@@ -74,61 +79,143 @@ app.get('/api/storefront/landing', (_request, response) => {
   response.json(getStorefrontLanding());
 });
 
-app.get('/api/dashboard', (_request, response) => {
-  response.json(getDashboard());
-});
+app.post(
+  '/api/admin/login',
+  runHandler((request, response) => {
+    response.json(loginAdmin(request.body));
+  }),
+);
 
-app.get('/api/purchases', (request, response) => {
-  const { query, status } = request.query;
-  response.json(
-    getPurchases({
-      query: typeof query === 'string' ? query : '',
-      status: typeof status === 'string' ? status : undefined,
-    }),
-  );
-});
+app.get(
+  '/api/admin/me',
+  runHandler((request, response) => {
+    response.json({
+      admin: getAdminProfile(getAdminBearerToken(request)),
+    });
+  }),
+);
+
+const ensureAdminSession = (request) => {
+  getAdminProfile(getAdminBearerToken(request));
+};
+
+app.get(
+  '/api/dashboard',
+  runHandler((request, response) => {
+    ensureAdminSession(request);
+    response.json(getDashboard());
+  }),
+);
+
+app.get(
+  '/api/stock-incomes',
+  runHandler((request, response) => {
+    ensureAdminSession(request);
+    const { query, status } = request.query;
+
+    response.json(
+      getStockIncomes({
+        query: typeof query === 'string' ? query : '',
+        status: typeof status === 'string' ? status : undefined,
+      }),
+    );
+  }),
+);
+
+app.post(
+  '/api/stock-incomes',
+  runHandler((request, response) => {
+    ensureAdminSession(request);
+    response.status(201).json(createStockIncome(request.body));
+  }),
+);
+
+app.patch(
+  '/api/stock-incomes/:incomeId',
+  runHandler((request, response) => {
+    ensureAdminSession(request);
+    response.json(updateStockIncome(request.params.incomeId, request.body));
+  }),
+);
+
+app.delete(
+  '/api/stock-incomes/:incomeId',
+  runHandler((request, response) => {
+    ensureAdminSession(request);
+    deleteStockIncome(request.params.incomeId);
+    response.sendStatus(204);
+  }),
+);
+
+app.get(
+  '/api/purchases',
+  runHandler((request, response) => {
+    ensureAdminSession(request);
+    const { query, status } = request.query;
+
+    response.json(
+      getStockIncomes({
+        query: typeof query === 'string' ? query : '',
+        status: typeof status === 'string' ? status : undefined,
+      }),
+    );
+  }),
+);
 
 app.post(
   '/api/purchases',
   runHandler((request, response) => {
-    response.status(201).json(createPurchase(request.body));
+    ensureAdminSession(request);
+    response.status(201).json(createStockIncome(request.body));
   }),
 );
 
 app.patch(
   '/api/purchases/:orderId',
   runHandler((request, response) => {
-    response.json(updatePurchase(request.params.orderId, request.body));
+    ensureAdminSession(request);
+    response.json(updateStockIncome(request.params.orderId, request.body));
   }),
 );
 
 app.delete(
   '/api/purchases/:orderId',
   runHandler((request, response) => {
-    deletePurchase(request.params.orderId);
+    ensureAdminSession(request);
+    deleteStockIncome(request.params.orderId);
     response.sendStatus(204);
   }),
 );
 
-app.get('/api/suppliers', (request, response) => {
-  const { query } = request.query;
-  response.json(
-    getSuppliers({
-      query: typeof query === 'string' ? query : '',
-    }),
-  );
-});
+app.get(
+  '/api/suppliers',
+  runHandler((request, response) => {
+    ensureAdminSession(request);
+    const { query } = request.query;
 
-app.get('/api/reports', (request, response) => {
-  const { from, to, supplier } = request.query;
-  response.json(
-    getReports({
-      from: typeof from === 'string' ? from : undefined,
-      to: typeof to === 'string' ? to : undefined,
-      supplier: typeof supplier === 'string' ? supplier : undefined,
-    }),
-  );
-});
+    response.json(
+      getSuppliers({
+        query: typeof query === 'string' ? query : '',
+      }),
+    );
+  }),
+);
+
+app.get(
+  '/api/reports',
+  runHandler((request, response) => {
+    ensureAdminSession(request);
+    const { from, to, supplier } = request.query;
+
+    response.json(
+      getReports({
+        from: typeof from === 'string' ? from : undefined,
+        to: typeof to === 'string' ? to : undefined,
+        supplier: typeof supplier === 'string' ? supplier : undefined,
+      }),
+    );
+  }),
+);
 
 app.post(
   '/api/customer/login',
@@ -141,7 +228,7 @@ app.get(
   '/api/customer/me',
   runHandler((request, response) => {
     response.json({
-      customer: getCustomerProfile(getBearerToken(request)),
+      customer: getCustomerProfile(getCustomerBearerToken(request)),
     });
   }),
 );
@@ -151,7 +238,7 @@ app.patch(
   runHandler((request, response) => {
     response.json(
       updateCustomerProfile({
-        token: getBearerToken(request),
+        token: getCustomerBearerToken(request),
         payload: request.body,
       }),
     );
@@ -165,7 +252,7 @@ app.get(
 
     response.json(
       getProducts({
-        token: getBearerToken(request),
+        token: getCustomerBearerToken(request),
         query: typeof query === 'string' ? query : '',
         category: typeof category === 'string' ? category : undefined,
       }),
@@ -178,7 +265,7 @@ app.get(
   runHandler((request, response) => {
     response.json(
       getCustomerOrders({
-        token: getBearerToken(request),
+        token: getCustomerBearerToken(request),
       }),
     );
   }),
@@ -189,7 +276,7 @@ app.get(
   runHandler((request, response) => {
     response.json(
       getCustomerOrder({
-        token: getBearerToken(request),
+        token: getCustomerBearerToken(request),
         orderId: request.params.orderId,
       }),
     );
@@ -201,7 +288,7 @@ app.post(
   runHandler((request, response) => {
     response.status(201).json(
       createCustomerOrder({
-        token: getBearerToken(request),
+        token: getCustomerBearerToken(request),
         payload: request.body,
       }),
     );

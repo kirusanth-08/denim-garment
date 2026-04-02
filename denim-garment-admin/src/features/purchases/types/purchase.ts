@@ -1,10 +1,18 @@
-import { PurchaseStatus } from '../../../constants/status';
+import { StockIncomeStatus } from '../../../constants/status';
 
-export type Purchase = {
-  orderId: string;
+export type StockIncome = {
+  incomeId: string;
   supplier: string;
-  date: string;
-  items: number;
-  total: string;
-  status: PurchaseStatus;
+  receivedDate: string;
+  materialLots: number;
+  stockValue: number;
+  stockValueLabel: string;
+  status: StockIncomeStatus;
+  orderId?: string;
+  date?: string;
+  items?: number;
+  total?: string;
+  totalValue?: number;
 };
+
+export type Purchase = StockIncome;

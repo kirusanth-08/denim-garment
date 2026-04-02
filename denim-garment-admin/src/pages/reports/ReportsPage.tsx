@@ -23,7 +23,7 @@ export const ReportsPage = () => {
 
   return (
     <div>
-      <PageHeader eyebrow="Reports & Analytics" title="Reports" subtitle="Purchase analytics and insights" />
+      <PageHeader eyebrow="Reports & Analytics" title="Reports" subtitle="Stock intake analytics and supplier insights" />
       <Card className="mb-6 p-4">
         <div className="grid gap-4 md:grid-cols-3">
           <DateField label="From" value={fromDate} onChange={setFromDate} />
@@ -48,7 +48,7 @@ export const ReportsPage = () => {
         <Card className="p-6 text-base text-slate-500">Loading report data...</Card>
       ) : (
         <div className="grid gap-4 xl:grid-cols-[2fr_1fr]">
-          <BarChartCard title="Monthly Purchase Trend" data={data.monthlyTrend} />
+          <BarChartCard title="Monthly Stock Income Trend" data={data.monthlyTrend} />
           <DonutChartCard title="Supplier Distribution" data={data.supplierDistribution} />
         </div>
       )}

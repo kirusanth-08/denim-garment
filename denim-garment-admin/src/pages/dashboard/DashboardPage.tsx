@@ -64,7 +64,7 @@ export const DashboardPage = () => {
       <PageHeader
         eyebrow="Denim Garment Management System"
         title="Dashboard"
-        subtitle="Overview of Dermas Apparel purchase operations"
+        subtitle="Overview of Dermas Apparel stock intake operations"
       />
 
       {error && !dashboardData ? (
@@ -82,7 +82,7 @@ export const DashboardPage = () => {
           </div>
 
           <div className="mt-6 grid gap-5 xl:grid-cols-[minmax(0,2fr)_minmax(320px,1fr)]">
-            <BarChartCard title="Monthly Purchase Trend" data={dashboardData.monthlyTrend} />
+            <BarChartCard title="Monthly Stock Income Trend" data={dashboardData.monthlyTrend} />
             <InfoCard title="Quick Overview" items={dashboardData.quickOverview} />
           </div>
         </>

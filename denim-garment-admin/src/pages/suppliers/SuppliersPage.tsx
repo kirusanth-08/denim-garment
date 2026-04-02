@@ -15,7 +15,7 @@ const columns: Column<Supplier>[] = [
   { key: 'name', header: 'Name', render: (row) => row.name },
   { key: 'contact', header: 'Contact', render: (row) => row.contact },
   { key: 'email', header: 'Email', render: (row) => <span className="text-slate-500">{row.email}</span> },
-  { key: 'totalPurchases', header: 'Total Purchases', render: (row) => row.totalPurchases },
+  { key: 'totalStockIncome', header: 'Total Stock Income', render: (row) => row.totalStockIncome },
   { key: 'actions', header: 'Actions', align: 'right', render: () => <ActionIconGroup actions={['edit', 'delete']} /> },
 ];
 
@@ -31,14 +31,14 @@ export const SuppliersPage = () => {
       <PageHeader
         eyebrow="Supplier Management"
         title="Suppliers"
-        subtitle="Manage your supplier network"
+        subtitle="Manage supplier relationships and stock intake value"
         action={<PrimaryButton><Plus size={22} /> Add Supplier</PrimaryButton>}
       />
 
       <Card className="mb-6 p-4">
         <SearchField value={query} onChange={setQuery} placeholder="Search suppliers..." />
         <div className="mt-3 text-sm text-slate-500">
-          {loading ? 'Refreshing suppliers from the demo API...' : `${suppliers.length} suppliers available.`}
+          {loading ? 'Refreshing suppliers and intake totals from the demo API...' : `${suppliers.length} suppliers available.`}
         </div>
       </Card>
 

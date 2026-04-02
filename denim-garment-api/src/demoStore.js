@@ -8,7 +8,8 @@ export class HttpError extends Error {
   }
 }
 
-export const PURCHASE_STATUSES = ['Delivered', 'Approved', 'Pending'];
+export const STOCK_INCOME_STATUSES = ['Received', 'Quality Checked', 'Pending Inspection'];
+export const PURCHASE_STATUSES = STOCK_INCOME_STATUSES;
 export const CUSTOMER_SHIPPING_METHODS = ['Standard Freight', 'Priority Dispatch', 'Store Pickup'];
 
 const supplierCatalog = [
@@ -20,15 +21,15 @@ const supplierCatalog = [
   { id: 'SUP-006', name: 'Indigo Mills', contact: '+94 70 247 1188', email: 'support@indigomills.com' },
 ];
 
-const initialPurchaseLedger = [
-  { orderId: 'PO-001', supplier: 'Fabric World Ltd', date: '2025-09-03', items: 3, totalValue: 331000, status: 'Delivered' },
-  { orderId: 'PO-002', supplier: 'Thread Masters', date: '2025-10-08', items: 2, totalValue: 215000, status: 'Approved' },
-  { orderId: 'PO-003', supplier: 'Denim Direct', date: '2025-11-16', items: 4, totalValue: 360000, status: 'Pending' },
-  { orderId: 'PO-004', supplier: 'Button & Zip Co', date: '2025-12-06', items: 2, totalValue: 130000, status: 'Approved' },
-  { orderId: 'PO-005', supplier: 'Packaging Plus', date: '2026-01-19', items: 1, totalValue: 50000, status: 'Pending' },
-  { orderId: 'PO-006', supplier: 'Indigo Mills', date: '2026-02-11', items: 3, totalValue: 290000, status: 'Delivered' },
-  { orderId: 'PO-007', supplier: 'Denim Direct', date: '2026-03-07', items: 2, totalValue: 205000, status: 'Pending' },
-  { orderId: 'PO-008', supplier: 'Fabric World Ltd', date: '2026-04-14', items: 2, totalValue: 152000, status: 'Approved' },
+const initialStockIncomeLedger = [
+  { orderId: 'SI-001', supplier: 'Fabric World Ltd', date: '2025-09-03', items: 3, totalValue: 331000, status: 'Received' },
+  { orderId: 'SI-002', supplier: 'Thread Masters', date: '2025-10-08', items: 2, totalValue: 215000, status: 'Quality Checked' },
+  { orderId: 'SI-003', supplier: 'Denim Direct', date: '2025-11-16', items: 4, totalValue: 360000, status: 'Pending Inspection' },
+  { orderId: 'SI-004', supplier: 'Button & Zip Co', date: '2025-12-06', items: 2, totalValue: 130000, status: 'Quality Checked' },
+  { orderId: 'SI-005', supplier: 'Packaging Plus', date: '2026-01-19', items: 1, totalValue: 50000, status: 'Pending Inspection' },
+  { orderId: 'SI-006', supplier: 'Indigo Mills', date: '2026-02-11', items: 3, totalValue: 290000, status: 'Received' },
+  { orderId: 'SI-007', supplier: 'Denim Direct', date: '2026-03-07', items: 2, totalValue: 205000, status: 'Pending Inspection' },
+  { orderId: 'SI-008', supplier: 'Fabric World Ltd', date: '2026-04-14', items: 2, totalValue: 152000, status: 'Quality Checked' },
 ];
 
 const supplierColorMap = {
@@ -39,6 +40,25 @@ const supplierColorMap = {
   'Packaging Plus': '#A855F7',
   'Indigo Mills': '#0F172A',
 };
+
+const initialAdminAccounts = [
+  {
+    id: 'ADM-001',
+    name: 'Nadia Perera',
+    email: 'admin@dermas.com',
+    password: 'admin123',
+    role: 'admin',
+    title: 'Operations Administrator',
+  },
+  {
+    id: 'ADM-002',
+    name: 'Sahan Jay',
+    email: 'inventory@dermas.com',
+    password: 'stock123',
+    role: 'inventory_manager',
+    title: 'Inventory Manager',
+  },
+];
 
 const createAddress = (address) => ({
   company: address.company,
@@ -380,8 +400,9 @@ const initialCustomerOrderLedger = [
 
 const monthFormatter = new Intl.DateTimeFormat('en-US', { month: 'short' });
 
-let purchaseLedger = initialPurchaseLedger.map((purchase) => ({ ...purchase }));
+let purchaseLedger = initialStockIncomeLedger.map((purchase) => ({ ...purchase }));
 let productCatalog = initialProductCatalog.map((product) => ({ ...product }));
+let adminAccounts = initialAdminAccounts.map((admin) => ({ ...admin }));
 let customerAccounts = initialCustomerAccounts.map((customer) => ({
   ...customer,
   addresses: {
@@ -399,6 +420,7 @@ let customerOrderLedger = initialCustomerOrderLedger.map((order) => ({
 }));
 
 const customerSessions = new Map();
+const adminSessions = new Map();
 
 const normalize = (value = '') => String(value).trim().toLowerCase();
 const hasOwn = (value, key) => Object.prototype.hasOwnProperty.call(value, key);
@@ -507,8 +529,8 @@ const ensureSupplier = (value) => {
 };
 
 const ensureStatus = (value) => {
-  if (typeof value !== 'string' || !PURCHASE_STATUSES.includes(value)) {
-    throw new HttpError(400, `Status must be one of: ${PURCHASE_STATUSES.join(', ')}.`);
+  if (typeof value !== 'string' || !STOCK_INCOME_STATUSES.includes(value)) {
+    throw new HttpError(400, `Status must be one of: ${STOCK_INCOME_STATUSES.join(', ')}.`);
   }
 
   return value;
@@ -522,27 +544,29 @@ const ensureShippingMethod = (value) => {
   return value;
 };
 
-const validatePurchaseInput = (payload, { partial = false } = {}) => {
+const validateStockIncomeInput = (payload, { partial = false } = {}) => {
   if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
-    throw new HttpError(400, 'Purchase payload must be an object.');
+    throw new HttpError(400, 'Stock income payload must be an object.');
   }
 
   const result = {};
+  const hasField = (primaryKey, legacyKey) => hasOwn(payload, primaryKey) || hasOwn(payload, legacyKey);
+  const getField = (primaryKey, legacyKey) => (hasOwn(payload, primaryKey) ? payload[primaryKey] : payload[legacyKey]);
 
   if (!partial || hasOwn(payload, 'supplier')) {
     result.supplier = ensureSupplier(payload.supplier);
   }
 
-  if (!partial || hasOwn(payload, 'date')) {
-    result.date = ensureDate(payload.date, 'Date');
+  if (!partial || hasField('receivedDate', 'date')) {
+    result.date = ensureDate(getField('receivedDate', 'date'), 'Received date');
   }
 
-  if (!partial || hasOwn(payload, 'items')) {
-    result.items = ensurePositiveInteger(payload.items, 'Items');
+  if (!partial || hasField('materialLots', 'items')) {
+    result.items = ensurePositiveInteger(getField('materialLots', 'items'), 'Material lots');
   }
 
-  if (!partial || hasOwn(payload, 'totalValue')) {
-    result.totalValue = ensurePositiveNumber(payload.totalValue, 'Total value');
+  if (!partial || hasField('stockValue', 'totalValue')) {
+    result.totalValue = ensurePositiveNumber(getField('stockValue', 'totalValue'), 'Stock value');
   }
 
   if (!partial || hasOwn(payload, 'status')) {
@@ -550,7 +574,7 @@ const validatePurchaseInput = (payload, { partial = false } = {}) => {
   }
 
   if (partial && Object.keys(result).length === 0) {
-    throw new HttpError(400, 'At least one purchase field must be provided.');
+    throw new HttpError(400, 'At least one stock income field must be provided.');
   }
 
   return result;
@@ -582,6 +606,40 @@ const sanitizeCustomer = ({ password, ...customer }) => ({
   },
   paymentMethods: customer.paymentMethods.map((paymentMethod) => mapPaymentMethod(clonePaymentMethod(paymentMethod))),
 });
+
+const mapAdminRoleLabel = (role) => (role === 'admin' ? 'Administrator' : 'Inventory Manager');
+
+const sanitizeAdmin = ({ password, ...admin }) => ({
+  ...admin,
+  roleLabel: mapAdminRoleLabel(admin.role),
+});
+
+const createAdminSession = (adminId) => {
+  const token = randomUUID();
+  adminSessions.set(token, adminId);
+  return token;
+};
+
+const getAdminByEmail = (email) => adminAccounts.find((admin) => normalize(admin.email) === normalize(email));
+const getAdminById = (adminId) => adminAccounts.find((admin) => admin.id === adminId);
+
+const requireAdminFromToken = (token) => {
+  if (typeof token !== 'string' || token.trim().length === 0) {
+    throw new HttpError(401, 'Admin login required.');
+  }
+
+  const adminId = adminSessions.get(token.trim());
+  if (!adminId) {
+    throw new HttpError(401, 'Admin session is invalid or has expired.');
+  }
+
+  const admin = getAdminById(adminId);
+  if (!admin) {
+    throw new HttpError(401, 'Admin session is invalid or has expired.');
+  }
+
+  return admin;
+};
 
 const createCustomerSession = (customerId) => {
   const token = randomUUID();
@@ -630,11 +688,11 @@ const createNextCustomerOrderId = () => {
 const createNextOrderId = () => {
   const nextNumber =
     purchaseLedger.reduce((max, purchase) => {
-      const parsed = Number(purchase.orderId.replace('PO-', ''));
+      const parsed = Number(String(purchase.orderId).replace(/[^0-9]/g, ''));
       return Number.isFinite(parsed) && parsed > max ? parsed : max;
     }, 0) + 1;
 
-  return `PO-${String(nextNumber).padStart(3, '0')}`;
+  return `SI-${String(nextNumber).padStart(3, '0')}`;
 };
 
 const validateOrderItems = (items) => {
@@ -703,8 +761,17 @@ const mapCustomerOrder = (order) => ({
   })),
 });
 
-const mapPurchaseRecord = ({ totalValue, ...purchase }) => ({
-  ...purchase,
+const mapStockIncomeRecord = ({ totalValue, ...purchase }) => ({
+  incomeId: purchase.orderId,
+  supplier: purchase.supplier,
+  receivedDate: purchase.date,
+  materialLots: purchase.items,
+  stockValue: totalValue,
+  stockValueLabel: formatCurrency(totalValue),
+  status: purchase.status,
+  orderId: purchase.orderId,
+  date: purchase.date,
+  items: purchase.items,
   totalValue,
   total: formatCurrency(totalValue),
 });
@@ -931,7 +998,7 @@ export const getStorefrontLanding = () => {
   };
 };
 
-export const getPurchases = ({ query = '', status } = {}) => {
+export const getStockIncomes = ({ query = '', status } = {}) => {
   const normalizedQuery = normalize(query);
 
   return [...purchaseLedger]
@@ -945,8 +1012,10 @@ export const getPurchases = ({ query = '', status } = {}) => {
 
       return matchesQuery && matchesStatus;
     })
-    .map(mapPurchaseRecord);
+    .map(mapStockIncomeRecord);
 };
+
+export const getPurchases = (options = {}) => getStockIncomes(options);
 
 export const getSuppliers = ({ query = '' } = {}) => {
   const normalizedQuery = normalize(query);
@@ -960,10 +1029,15 @@ export const getSuppliers = ({ query = '' } = {}) => {
 
       return [supplier.id, supplier.name, supplier.email].some((value) => normalize(value).includes(normalizedQuery));
     })
-    .map((supplier) => ({
-      ...supplier,
-      totalPurchases: formatCurrency(totalsBySupplier[supplier.name] ?? 0),
-    }));
+    .map((supplier) => {
+      const totalStockIncome = formatCurrency(totalsBySupplier[supplier.name] ?? 0);
+
+      return {
+        ...supplier,
+        totalStockIncome,
+        totalPurchases: totalStockIncome,
+      };
+    });
 };
 
 export const getDashboard = () => {
@@ -973,47 +1047,54 @@ export const getDashboard = () => {
   previousDate.setMonth(previousDate.getMonth() - 1);
   const previousMonthKey = toMonthKey(previousDate);
 
-  const currentMonthPurchases = purchaseLedger.filter((purchase) => toMonthKey(parseDateInput(purchase.date) ?? latestLedgerDate) === latestMonthKey);
-  const previousMonthPurchases = purchaseLedger.filter((purchase) => toMonthKey(parseDateInput(purchase.date) ?? latestLedgerDate) === previousMonthKey);
+  const currentMonthStockIncomes = purchaseLedger.filter((purchase) =>
+    toMonthKey(parseDateInput(purchase.date) ?? latestLedgerDate) === latestMonthKey,
+  );
+  const previousMonthStockIncomes = purchaseLedger.filter((purchase) =>
+    toMonthKey(parseDateInput(purchase.date) ?? latestLedgerDate) === previousMonthKey,
+  );
 
-  const currentMonthTotal = currentMonthPurchases.reduce((sum, purchase) => sum + purchase.totalValue, 0);
-  const previousMonthTotal = previousMonthPurchases.reduce((sum, purchase) => sum + purchase.totalValue, 0);
-  const totalOrders = purchaseLedger.length;
-  const pendingOrders = purchaseLedger.filter((purchase) => purchase.status === 'Pending').length;
-  const approvedOrders = purchaseLedger.filter((purchase) => purchase.status === 'Approved').length;
-  const deliveredOrders = purchaseLedger.filter((purchase) => purchase.status === 'Delivered').length;
+  const currentMonthTotal = currentMonthStockIncomes.reduce((sum, purchase) => sum + purchase.totalValue, 0);
+  const previousMonthTotal = previousMonthStockIncomes.reduce((sum, purchase) => sum + purchase.totalValue, 0);
+  const totalEntries = purchaseLedger.length;
+  const pendingInspectionEntries = purchaseLedger.filter((purchase) => purchase.status === 'Pending Inspection').length;
+  const qualityCheckedEntries = purchaseLedger.filter((purchase) => purchase.status === 'Quality Checked').length;
+  const receivedEntries = purchaseLedger.filter((purchase) => purchase.status === 'Received').length;
 
   const totalsBySupplier = getLedgerTotalsBySupplier();
   const topSupplierEntry = Object.entries(totalsBySupplier).sort(([, leftValue], [, rightValue]) => rightValue - leftValue)[0];
   const topSupplierName = topSupplierEntry?.[0] ?? supplierCatalog[0]?.name ?? 'No supplier';
   const topSupplierValue = topSupplierEntry?.[1] ?? 0;
 
-  const purchaseDelta =
+  const stockIncomeDelta =
     previousMonthTotal === 0 ? null : Math.round(((currentMonthTotal - previousMonthTotal) / previousMonthTotal) * 100);
 
   return {
     stats: [
       {
-        label: 'Current Month Spend',
+        label: 'Current Month Stock Value',
         value: formatCompactCurrency(currentMonthTotal),
-        subtext: 'Latest purchase cycle',
-        highlight: purchaseDelta === null ? 'New activity this month' : `${Math.abs(purchaseDelta)}% ${purchaseDelta >= 0 ? 'above' : 'below'} last month`,
-        highlightTone: purchaseDelta === null ? 'info' : purchaseDelta >= 0 ? 'positive' : 'negative',
+        subtext: 'Latest intake cycle',
+        highlight:
+          stockIncomeDelta === null
+            ? 'New intake activity this month'
+            : `${Math.abs(stockIncomeDelta)}% ${stockIncomeDelta >= 0 ? 'above' : 'below'} last month`,
+        highlightTone: stockIncomeDelta === null ? 'info' : stockIncomeDelta >= 0 ? 'positive' : 'negative',
         iconKey: 'currency',
       },
       {
-        label: 'Purchase Orders',
-        value: String(totalOrders),
+        label: 'Stock Income Entries',
+        value: String(totalEntries),
         subtext: 'Across all submissions',
-        highlight: `${currentMonthPurchases.length} created this month`,
+        highlight: `${currentMonthStockIncomes.length} logged this month`,
         highlightTone: 'positive',
         iconKey: 'orders',
       },
       {
-        label: 'Pending Approval',
-        value: String(pendingOrders),
-        subtext: 'Awaiting supplier confirmation',
-        highlight: `${approvedOrders} approved so far`,
+        label: 'Pending Inspection',
+        value: String(pendingInspectionEntries),
+        subtext: 'Awaiting quality checks',
+        highlight: `${qualityCheckedEntries} quality checked`,
         highlightTone: 'info',
         iconKey: 'pending',
       },
@@ -1021,7 +1102,7 @@ export const getDashboard = () => {
         label: 'Active Suppliers',
         value: String(supplierCatalog.length),
         subtext: 'Available for sourcing',
-        highlight: `${deliveredOrders} delivered orders`,
+        highlight: `${receivedEntries} marked as received`,
         highlightTone: 'positive',
         iconKey: 'suppliers',
       },
@@ -1029,14 +1110,14 @@ export const getDashboard = () => {
     monthlyTrend: buildMonthlyTrend(purchaseLedger),
     quickOverview: [
       {
-        title: 'Delivered Orders',
-        subtitle: `${deliveredOrders} completed successfully`,
+        title: 'Received Entries',
+        subtitle: `${receivedEntries} fully received`,
         iconKey: 'truck',
         tone: 'success',
       },
       {
-        title: 'Pending Approval',
-        subtitle: `${pendingOrders} requests still in progress`,
+        title: 'Pending Inspection',
+        subtitle: `${pendingInspectionEntries} entries awaiting checks`,
         iconKey: 'clock',
         tone: 'warning',
       },
@@ -1054,10 +1135,12 @@ export const getReports = ({ from, to, supplier } = {}) => {
   const fromDate = parseDateInput(from);
   const toDate = parseDateInput(to);
 
-  const dateFilteredPurchases = purchaseLedger.filter((purchase) => isWithinRange(purchase.date, fromDate, toDate));
-  const supplierFilteredPurchases = supplier ? dateFilteredPurchases.filter((purchase) => purchase.supplier === supplier) : dateFilteredPurchases;
+  const dateFilteredStockIncomes = purchaseLedger.filter((purchase) => isWithinRange(purchase.date, fromDate, toDate));
+  const supplierFilteredStockIncomes = supplier
+    ? dateFilteredStockIncomes.filter((purchase) => purchase.supplier === supplier)
+    : dateFilteredStockIncomes;
 
-  const fullDistribution = buildSupplierDistribution(dateFilteredPurchases);
+  const fullDistribution = buildSupplierDistribution(dateFilteredStockIncomes);
 
   const supplierDistribution = supplier
     ? (() => {
@@ -1077,49 +1160,81 @@ export const getReports = ({ from, to, supplier } = {}) => {
     : fullDistribution;
 
   return {
-    monthlyTrend: buildMonthlyTrend(supplierFilteredPurchases),
+    monthlyTrend: buildMonthlyTrend(supplierFilteredStockIncomes),
     supplierDistribution,
     supplierOptions: supplierCatalog.map((item) => item.name),
   };
 };
 
-export const createPurchase = (payload) => {
-  const nextPurchase = {
+export const createStockIncome = (payload) => {
+  const nextStockIncome = {
     orderId: createNextOrderId(),
-    ...validatePurchaseInput(payload),
+    ...validateStockIncomeInput(payload),
   };
 
-  purchaseLedger = [...purchaseLedger, nextPurchase];
+  purchaseLedger = [...purchaseLedger, nextStockIncome];
 
-  return mapPurchaseRecord(nextPurchase);
+  return mapStockIncomeRecord(nextStockIncome);
 };
 
-export const updatePurchase = (orderId, payload) => {
-  const targetIndex = purchaseLedger.findIndex((purchase) => purchase.orderId === orderId);
+export const updateStockIncome = (incomeId, payload) => {
+  const targetIndex = purchaseLedger.findIndex((purchase) => purchase.orderId === incomeId);
 
   if (targetIndex === -1) {
-    throw new HttpError(404, 'Purchase order not found.');
+    throw new HttpError(404, 'Stock income entry not found.');
   }
 
-  const updatedPurchase = {
+  const updatedStockIncome = {
     ...purchaseLedger[targetIndex],
-    ...validatePurchaseInput(payload, { partial: true }),
+    ...validateStockIncomeInput(payload, { partial: true }),
   };
 
-  purchaseLedger = purchaseLedger.map((purchase, index) => (index === targetIndex ? updatedPurchase : purchase));
+  purchaseLedger = purchaseLedger.map((purchase, index) => (index === targetIndex ? updatedStockIncome : purchase));
 
-  return mapPurchaseRecord(updatedPurchase);
+  return mapStockIncomeRecord(updatedStockIncome);
 };
 
-export const deletePurchase = (orderId) => {
-  const exists = purchaseLedger.some((purchase) => purchase.orderId === orderId);
+export const deleteStockIncome = (incomeId) => {
+  const exists = purchaseLedger.some((purchase) => purchase.orderId === incomeId);
 
   if (!exists) {
-    throw new HttpError(404, 'Purchase order not found.');
+    throw new HttpError(404, 'Stock income entry not found.');
   }
 
-  purchaseLedger = purchaseLedger.filter((purchase) => purchase.orderId !== orderId);
+  purchaseLedger = purchaseLedger.filter((purchase) => purchase.orderId !== incomeId);
 };
+
+export const createPurchase = (payload) => createStockIncome(payload);
+export const updatePurchase = (orderId, payload) => updateStockIncome(orderId, payload);
+export const deletePurchase = (orderId) => deleteStockIncome(orderId);
+
+export const loginAdmin = (payload) => {
+  if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
+    throw new HttpError(400, 'Admin login payload must be an object.');
+  }
+
+  const email = typeof payload.email === 'string' ? payload.email.trim() : '';
+  const password = typeof payload.password === 'string' ? payload.password : '';
+
+  if (!email || !password) {
+    throw new HttpError(400, 'Email and password are required.');
+  }
+
+  const admin = getAdminByEmail(email);
+
+  if (!admin || admin.password !== password) {
+    throw new HttpError(401, 'Invalid admin email or password.');
+  }
+
+  const token = createAdminSession(admin.id);
+
+  return {
+    token,
+    admin: sanitizeAdmin(admin),
+  };
+};
+
+export const getAdminProfile = (token) => sanitizeAdmin(requireAdminFromToken(token));
 
 export const loginCustomer = (payload) => {
   if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {

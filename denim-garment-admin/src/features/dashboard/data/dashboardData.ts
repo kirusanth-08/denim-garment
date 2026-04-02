@@ -4,28 +4,28 @@ import { DashboardData } from '../types/dashboard';
 export const dashboardData: DashboardData = {
   stats: [
     {
-      label: 'Total Purchases',
+      label: 'Current Month Stock Value',
       value: 'Rs. 1563K',
-      subtext: 'This month',
-      highlight: '↓ 12% vs last month',
+      subtext: 'Latest intake cycle',
+      highlight: '12% below last month',
       highlightClassName: 'text-red-500',
       icon: CircleDollarSign,
       iconColor: 'text-blue-500',
     },
     {
-      label: 'Total Orders',
+      label: 'Stock Income Entries',
       value: '8',
-      subtext: 'All time',
-      highlight: '3 new this month',
+      subtext: 'Across all submissions',
+      highlight: '3 logged this month',
       highlightClassName: 'text-emerald-500',
       icon: ShoppingCart,
       iconColor: 'text-emerald-500',
     },
     {
-      label: 'Pending Orders',
+      label: 'Pending Inspection',
       value: '3',
-      subtext: 'Awaiting approval',
-      highlight: '2 approved',
+      subtext: 'Awaiting quality checks',
+      highlight: '2 quality checked',
       highlightClassName: 'text-blue-500',
       icon: Clock3,
       iconColor: 'text-amber-500',
@@ -50,8 +50,8 @@ export const dashboardData: DashboardData = {
     { month: 'Mar', value: 1600 },
   ],
   quickOverview: [
-    { title: 'Delivered Orders', subtitle: '1 completed', icon: Truck, tone: 'bg-emerald-50 border-emerald-100 text-emerald-500' },
-    { title: 'Pending Approval', subtitle: '3 orders waiting', icon: Clock3, tone: 'bg-amber-50 border-amber-100 text-amber-500' },
+    { title: 'Received Entries', subtitle: '1 fully received', icon: Truck, tone: 'bg-emerald-50 border-emerald-100 text-emerald-500' },
+    { title: 'Pending Inspection', subtitle: '3 entries waiting', icon: Clock3, tone: 'bg-amber-50 border-amber-100 text-amber-500' },
     { title: 'Top Supplier', subtitle: 'Denim Direct — Rs. 1.2M', icon: TrendingUp, tone: 'bg-blue-50 border-blue-100 text-blue-500' },
   ],
 };
