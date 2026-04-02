@@ -5,3 +5,4 @@ export type Supplier = {
   email: string;
   totalPurchases: string;
 };
+

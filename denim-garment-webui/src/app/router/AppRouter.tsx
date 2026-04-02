@@ -8,6 +8,7 @@ import { ReportsPage } from '../../pages/reports/ReportsPage';
 export const AppRouter = () => (
   <Routes>
     <Route element={<AppShell />}>
+      <Route path="/" element={<Navigate to="/dashboard" replace />} />
       <Route path="/dashboard" element={<DashboardPage />} />
       <Route path="/purchases" element={<PurchasesPage />} />
       <Route path="/suppliers" element={<SuppliersPage />} />

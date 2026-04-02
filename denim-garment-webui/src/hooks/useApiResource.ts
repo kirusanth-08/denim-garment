@@ -5,12 +5,14 @@ type ApiResourceState<T> = {
   data: T | null;
   loading: boolean;
   error: string | null;
+  reload: () => void;
 };
 
-export const useApiResource = <T,>(path: string): ApiResourceState<T> => {
+export const useApiResource = <T,>(path: string, dependencies: ReadonlyArray<unknown> = []): ApiResourceState<T> => {
   const [data, setData] = useState<T | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [reloadToken, setReloadToken] = useState(0);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -33,7 +35,13 @@ export const useApiResource = <T,>(path: string): ApiResourceState<T> => {
       });
 
     return () => controller.abort();
-  }, [path]);
+  }, [path, reloadToken, ...dependencies]);
 
-  return { data, loading, error };
+  return {
+    data,
+    loading,
+    error,
+    reload: () => setReloadToken((current) => current + 1),
+  };
 };
+

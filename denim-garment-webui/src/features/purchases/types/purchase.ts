@@ -5,6 +5,16 @@ export type Purchase = {
   supplier: string;
   date: string;
   items: number;
+  totalValue: number;
   total: string;
   status: PurchaseStatus;
 };
+
+export type PurchaseInput = {
+  supplier: string;
+  date: string;
+  items: number;
+  totalValue: number;
+  status: PurchaseStatus;
+};
+

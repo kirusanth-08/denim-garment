@@ -1,5 +1,9 @@
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? '/api').replace(/\/$/, '');
 
+type ApiRequestOptions = Omit<RequestInit, 'body'> & {
+  body?: unknown;
+};
+
 const normalizePath = (path: string) => (path.startsWith('/') ? path : `/${path}`);
 
 export const withQuery = (path: string, params: Record<string, string | undefined>) => {
@@ -18,12 +22,17 @@ export const withQuery = (path: string, params: Record<string, string | undefine
   return query ? `${normalizedPath}?${query}` : normalizedPath;
 };
 
-export const apiFetch = async <T,>(path: string, signal?: AbortSignal): Promise<T> => {
+export const apiRequest = async <T,>(path: string, options: ApiRequestOptions = {}): Promise<T> => {
+  const { body, headers, ...rest } = options;
+
   const response = await fetch(`${API_BASE_URL}${normalizePath(path)}`, {
     headers: {
       Accept: 'application/json',
+      ...(body !== undefined ? { 'Content-Type': 'application/json' } : {}),
+      ...headers,
     },
-    signal,
+    body: body !== undefined ? JSON.stringify(body) : undefined,
+    ...rest,
   });
 
   if (!response.ok) {
@@ -35,11 +44,18 @@ export const apiFetch = async <T,>(path: string, signal?: AbortSignal): Promise<
         message = payload.message;
       }
     } catch {
-      // Ignore JSON parsing failures and fall back to the default message.
+      // Ignore malformed JSON responses and fall back to the default error.
     }
 
     throw new Error(message);
   }
 
+  if (response.status === 204) {
+    return undefined as T;
+  }
+
   return response.json() as Promise<T>;
 };
+
+export const apiFetch = <T,>(path: string, signal?: AbortSignal) => apiRequest<T>(path, { method: 'GET', signal });
+

@@ -4,3 +4,4 @@ export type ChartPoint = {
   month: string;
   value: number;
 };
+

@@ -1,5 +1,5 @@
 import express from 'express';
-import { getDashboard, getPurchases, getReports, getSuppliers } from './demoStore.js';
+import { HttpError, createPurchase, deletePurchase, getDashboard, getPurchases, getReports, getSuppliers, updatePurchase } from './demoStore.js';
 
 const app = express();
 const port = Number(process.env.PORT ?? 4000);
@@ -17,6 +17,24 @@ app.use((request, response, next) => {
 
   next();
 });
+
+const handleError = (response, error) => {
+  if (error instanceof HttpError) {
+    response.status(error.status).json({ message: error.message });
+    return;
+  }
+
+  console.error(error);
+  response.status(500).json({ message: 'Unexpected server error.' });
+};
+
+const runHandler = (handler) => (request, response) => {
+  try {
+    handler(request, response);
+  } catch (error) {
+    handleError(response, error);
+  }
+};
 
 app.get('/api/health', (_request, response) => {
   response.json({
@@ -38,6 +56,28 @@ app.get('/api/purchases', (request, response) => {
     }),
   );
 });
+
+app.post(
+  '/api/purchases',
+  runHandler((request, response) => {
+    response.status(201).json(createPurchase(request.body));
+  }),
+);
+
+app.patch(
+  '/api/purchases/:orderId',
+  runHandler((request, response) => {
+    response.json(updatePurchase(request.params.orderId, request.body));
+  }),
+);
+
+app.delete(
+  '/api/purchases/:orderId',
+  runHandler((request, response) => {
+    deletePurchase(request.params.orderId);
+    response.sendStatus(204);
+  }),
+);
 
 app.get('/api/suppliers', (request, response) => {
   const { query } = request.query;

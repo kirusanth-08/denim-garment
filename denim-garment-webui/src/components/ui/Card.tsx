@@ -4,5 +4,6 @@ import { cn } from '../../lib/cn';
 type CardProps = PropsWithChildren<{ className?: string }>;
 
 export const Card = ({ className, children }: CardProps) => (
-  <section className={cn('rounded-2xl border border-slate-200 bg-card shadow-sm', className)}>{children}</section>
+  <section className={cn('rounded-[28px] border border-white/70 bg-card shadow-panel', className)}>{children}</section>
 );
+

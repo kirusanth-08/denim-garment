@@ -1,9 +1,14 @@
 import { Search } from 'lucide-react';
 
-type Props = { value: string; onChange: (value: string) => void; placeholder: string; className?: string };
+type SearchFieldProps = {
+  value: string;
+  onChange: (value: string) => void;
+  placeholder: string;
+  className?: string;
+};
 
-export const SearchField = ({ value, onChange, placeholder, className }: Props) => (
-  <label className={`flex w-full items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-500 ${className ?? ''}`}>
+export const SearchField = ({ value, onChange, placeholder, className }: SearchFieldProps) => (
+  <label className={`flex w-full items-center gap-3 rounded-full border border-mist bg-white px-4 py-3 text-slate-500 ${className ?? ''}`}>
     <Search size={18} />
     <input
       value={value}
@@ -13,3 +18,4 @@ export const SearchField = ({ value, onChange, placeholder, className }: Props) 
     />
   </label>
 );
+

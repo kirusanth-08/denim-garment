@@ -49,3 +49,4 @@ export type DashboardApiResponse = {
   monthlyTrend: ChartPoint[];
   quickOverview: QuickOverviewItemApi[];
 };
+
