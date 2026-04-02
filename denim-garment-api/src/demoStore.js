@@ -458,6 +458,7 @@ const normalizeSupplierContact = (value) => normalizeWhitespace(value);
 const normalizeSupplierEmail = (value) => String(value).trim().toLowerCase();
 const canonicalizeSupplierName = (value) => normalizeSupplierName(value).toLowerCase();
 const canonicalizeSupplierEmail = (value) => normalizeSupplierEmail(value);
+const isSupplierActive = (supplier) => !supplier.deletedAt;
 const hasOwn = (value, key) => Object.prototype.hasOwnProperty.call(value, key);
 const formatCurrency = (value) => `Rs. ${Math.round(value).toLocaleString('en-US')}`;
 const formatCompactCurrency = (value) => `Rs. ${Math.round(value / 1000)}K`;
@@ -668,7 +669,9 @@ const ensureSupplier = (value) => {
   }
 
   const supplierName = canonicalizeSupplierName(value);
-  const match = supplierCatalog.find((supplier) => canonicalizeSupplierName(supplier.name) === supplierName);
+  const match = supplierCatalog.find(
+    (supplier) => isSupplierActive(supplier) && canonicalizeSupplierName(supplier.name) === supplierName,
+  );
   if (!match) {
     throw new HttpError(400, 'Supplier must match an existing supplier.');
   }
@@ -1269,6 +1272,7 @@ export const getSuppliers = ({ query = '' } = {}) => {
   const totalsBySupplier = getLedgerTotalsBySupplier();
 
   return supplierCatalog
+    .filter((supplier) => isSupplierActive(supplier))
     .filter((supplier) => {
       if (!normalizedQuery) {
         return true;
@@ -1283,14 +1287,16 @@ export const createSupplier = (payload) => {
   const nextValues = validateSupplierInput(payload);
 
   const duplicateName = supplierCatalog.find(
-    (supplier) => canonicalizeSupplierName(supplier.name) === canonicalizeSupplierName(nextValues.name),
+    (supplier) =>
+      isSupplierActive(supplier) && canonicalizeSupplierName(supplier.name) === canonicalizeSupplierName(nextValues.name),
   );
   if (duplicateName) {
     throw new HttpError(400, 'Supplier name is already in use.');
   }
 
   const duplicateEmail = supplierCatalog.find(
-    (supplier) => canonicalizeSupplierEmail(supplier.email) === canonicalizeSupplierEmail(nextValues.email),
+    (supplier) =>
+      isSupplierActive(supplier) && canonicalizeSupplierEmail(supplier.email) === canonicalizeSupplierEmail(nextValues.email),
   );
   if (duplicateEmail) {
     throw new HttpError(400, 'Supplier email is already in use.');
@@ -1298,6 +1304,7 @@ export const createSupplier = (payload) => {
 
   const nextSupplier = {
     id: createNextSupplierId(),
+    deletedAt: null,
     ...nextValues,
   };
 
@@ -1307,7 +1314,7 @@ export const createSupplier = (payload) => {
 };
 
 export const updateSupplier = (supplierId, payload) => {
-  const targetIndex = supplierCatalog.findIndex((supplier) => supplier.id === supplierId);
+  const targetIndex = supplierCatalog.findIndex((supplier) => supplier.id === supplierId && isSupplierActive(supplier));
 
   if (targetIndex === -1) {
     throw new HttpError(404, 'Supplier not found.');
@@ -1319,6 +1326,7 @@ export const updateSupplier = (supplierId, payload) => {
   if (updates.name && canonicalizeSupplierName(updates.name) !== canonicalizeSupplierName(existingSupplier.name)) {
     const duplicateName = supplierCatalog.find(
       (supplier) =>
+        isSupplierActive(supplier) &&
         supplier.id !== existingSupplier.id &&
         canonicalizeSupplierName(supplier.name) === canonicalizeSupplierName(updates.name),
     );
@@ -1338,6 +1346,7 @@ export const updateSupplier = (supplierId, payload) => {
   if (updates.email && canonicalizeSupplierEmail(updates.email) !== canonicalizeSupplierEmail(existingSupplier.email)) {
     const duplicateEmail = supplierCatalog.find(
       (supplier) =>
+        isSupplierActive(supplier) &&
         supplier.id !== existingSupplier.id &&
         canonicalizeSupplierEmail(supplier.email) === canonicalizeSupplierEmail(updates.email),
     );
@@ -1358,20 +1367,20 @@ export const updateSupplier = (supplierId, payload) => {
 };
 
 export const deleteSupplier = (supplierId) => {
-  const supplier = supplierCatalog.find((entry) => entry.id === supplierId);
+  const supplier = supplierCatalog.find((entry) => entry.id === supplierId && isSupplierActive(entry));
 
   if (!supplier) {
     throw new HttpError(404, 'Supplier not found.');
   }
 
-  const hasStockHistory = purchaseLedger.some(
-    (entry) => canonicalizeSupplierName(entry.supplier) === canonicalizeSupplierName(supplier.name),
+  supplierCatalog = supplierCatalog.map((entry) =>
+    entry.id === supplierId
+      ? {
+          ...entry,
+          deletedAt: new Date().toISOString(),
+        }
+      : entry,
   );
-  if (hasStockHistory) {
-    throw new HttpError(400, 'Cannot delete supplier with stock income history.');
-  }
-
-  supplierCatalog = supplierCatalog.filter((entry) => entry.id !== supplierId);
 };
 
 export const getDashboard = () => {
@@ -1434,7 +1443,7 @@ export const getDashboard = () => {
       },
       {
         label: 'Active Suppliers',
-        value: String(supplierCatalog.length),
+        value: String(supplierCatalog.filter((supplier) => isSupplierActive(supplier)).length),
         subtext: 'Available for sourcing',
         highlight: `${receivedEntries} marked as received`,
         highlightTone: 'positive',
@@ -1496,7 +1505,7 @@ export const getReports = ({ from, to, supplier } = {}) => {
   return {
     monthlyTrend: buildMonthlyTrend(supplierFilteredStockIncomes),
     supplierDistribution,
-    supplierOptions: supplierCatalog.map((item) => item.name),
+    supplierOptions: [...new Set(purchaseLedger.map((item) => item.supplier))],
   };
 };
 

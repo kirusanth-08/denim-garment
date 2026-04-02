@@ -150,7 +150,9 @@ Rules:
 - Supplier name must be unique.
 - Supplier email must be unique.
 - Supplier name cannot be changed if stock income history exists for that supplier.
-- Supplier cannot be deleted if stock income history exists.
+- Supplier delete is a soft delete.
+- Soft-deleted suppliers are removed from active supplier lists and stock-income supplier selection.
+- Historical stock income records remain intact and continue to reference the supplier name.
 
 ### Auth Validation
 
