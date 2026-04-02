@@ -5,7 +5,7 @@ export type DonutSlice = { name: string; value: number; color: string };
 
 export const DonutChartCard = ({ title, data }: { title: string; data: DonutSlice[] }) => (
   <Card className="p-6">
-    <h3 className="mb-4 text-4xl font-semibold text-slate-950">{title}</h3>
+    <h3 className="mb-5 text-2xl font-semibold tracking-tight text-slate-950">{title}</h3>
     <div className="h-[280px]">
       <ResponsiveContainer>
         <PieChart>
@@ -17,7 +17,7 @@ export const DonutChartCard = ({ title, data }: { title: string; data: DonutSlic
         </PieChart>
       </ResponsiveContainer>
     </div>
-    <div className="mt-4 flex flex-wrap gap-4 text-xl">
+    <div className="mt-4 flex flex-wrap gap-3 text-sm">
       {data.map((item) => (
         <div key={item.name} className="flex items-center gap-2">
           <span className="inline-block h-4 w-4" style={{ background: item.color }} />

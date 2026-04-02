@@ -20,7 +20,7 @@ export const ReportsPage = () => {
           <DateField label="From" value={fromDate} onChange={setFromDate} />
           <DateField label="To" value={toDate} onChange={setToDate} />
           <div>
-            <label className="mb-2 block text-xl text-slate-900">Supplier</label>
+            <label className="mb-2 block text-sm font-medium text-slate-700">Supplier</label>
             <SelectField
               value={supplier}
               onChange={setSupplier}

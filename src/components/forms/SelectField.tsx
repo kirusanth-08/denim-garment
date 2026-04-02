@@ -5,7 +5,7 @@ export const SelectField = ({ value, onChange, options, className }: Props) => (
   <select
     value={value}
     onChange={(event) => onChange(event.target.value)}
-    className={`w-full rounded-2xl border border-slate-200 bg-slate-100 px-4 py-3 text-3xl text-slate-900 outline-none ${className ?? ''}`}
+    className={`w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-base text-slate-900 outline-none ${className ?? ''}`}
   >
     {options.map((option) => (
       <option key={option.value} value={option.value}>

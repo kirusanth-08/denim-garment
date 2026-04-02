@@ -5,6 +5,10 @@
 :root {
   color: #0f172a;
   background: #f3f5f8;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 body {
@@ -12,8 +16,13 @@ body {
   min-height: 100vh;
   font-family: Inter, system-ui, sans-serif;
   background: #f3f5f8;
+  line-height: 1.5;
 }
 
 * {
   box-sizing: border-box;
+}
+
+#root {
+  min-height: 100vh;
 }

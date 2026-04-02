@@ -8,5 +8,5 @@ const toneMap: Record<PurchaseStatus, string> = {
 };
 
 export const StatusBadge = ({ status }: { status: PurchaseStatus }) => (
-  <span className={cn('inline-block rounded-full border px-3 py-1 text-xl', toneMap[status])}>{status}</span>
+  <span className={cn('inline-block rounded-full border px-3 py-1 text-sm font-medium', toneMap[status])}>{status}</span>
 );

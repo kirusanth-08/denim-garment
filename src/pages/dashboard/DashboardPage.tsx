@@ -12,13 +12,13 @@ export const DashboardPage = () => (
       subtitle="Overview of Dermas Apparel purchase operations"
     />
 
-    <div className="grid gap-4 xl:grid-cols-4">
+    <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
       {dashboardData.stats.map((stat) => (
         <StatCard key={stat.label} {...stat} />
       ))}
     </div>
 
-    <div className="mt-6 grid gap-4 xl:grid-cols-[2fr_1fr]">
+    <div className="mt-6 grid gap-5 xl:grid-cols-[minmax(0,2fr)_minmax(320px,1fr)]">
       <BarChartCard title="Monthly Purchase Trend" data={dashboardData.monthlyTrend} />
       <InfoCard title="Quick Overview" items={dashboardData.quickOverview} />
     </div>
