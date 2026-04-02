@@ -268,7 +268,7 @@ export const SuppliersPage = () => {
 
       setFeedback({
         tone: 'success',
-        message: `${supplierToDelete.name} was soft-deleted and removed from active supplier lists.`,
+        message: `${supplierToDelete.name} was removed from active supplier lists.`,
       });
 
       setDeletingSupplier(null);
@@ -431,7 +431,7 @@ export const SuppliersPage = () => {
         open={Boolean(deletingSupplier)}
         onClose={handleCloseDeleteModal}
         title="Delete Supplier"
-        description="This performs a soft delete. The supplier is removed from active lists but preserved for stock income history references."
+        description="The supplier will be removed from active lists. Past stock income records will remain unchanged."
         widthClassName="max-w-xl"
         footer={
           <div className="flex items-center justify-end gap-2">
@@ -456,7 +456,7 @@ export const SuppliersPage = () => {
       >
         <p className="text-sm text-slate-600">
           {deletingSupplier
-            ? `Please confirm soft deletion of ${deletingSupplier.name}. Historical stock income records will still reference this supplier.`
+            ? `Please confirm removing ${deletingSupplier.name}. Historical stock income records will still reference this supplier.`
             : 'Select a supplier to delete.'}
         </p>
       </Modal>
