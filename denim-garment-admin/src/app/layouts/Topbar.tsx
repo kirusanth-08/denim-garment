@@ -36,18 +36,19 @@ export const Topbar = () => {
     <header className="flex items-center justify-between border-b border-slate-200/80 bg-white/90 px-4 py-3 backdrop-blur sm:px-5 lg:px-6">
       <div />
       <div className="flex items-center gap-3 sm:gap-4">
-        <div className="hidden items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2 text-slate-500 sm:flex sm:min-w-[240px] lg:min-w-[280px]">
-          <Search size={16} />
-          <input
-            type="text"
-            value={isSearchablePage ? query : ''}
-            onChange={(event) => handleSearchChange(event.target.value)}
-            placeholder={isSearchablePage ? placeholder : 'Search is unavailable on this page'}
-            disabled={!isSearchablePage}
-            className="w-full bg-transparent text-sm text-slate-700 outline-none placeholder:text-slate-400 disabled:cursor-not-allowed disabled:text-slate-400"
-            aria-label="Header search"
-          />
-        </div>
+        {isSearchablePage ? (
+          <div className="hidden items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2 text-slate-500 sm:flex sm:min-w-[240px] lg:min-w-[280px]">
+            <Search size={16} />
+            <input
+              type="text"
+              value={query}
+              onChange={(event) => handleSearchChange(event.target.value)}
+              placeholder={placeholder}
+              className="w-full bg-transparent text-sm text-slate-700 outline-none placeholder:text-slate-400"
+              aria-label="Header search"
+            />
+          </div>
+        ) : null}
         <div className="relative">
           <button
             type="button"
