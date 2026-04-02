@@ -1,10 +1,36 @@
 import { useState } from 'react';
 import { Bell, CircleUserRound, Search } from 'lucide-react';
+import { useLocation, useSearchParams } from 'react-router-dom';
 import { useAdminAuth } from '../context/AdminAuthContext';
 
 export const Topbar = () => {
   const { admin } = useAdminAuth();
   const [showNotifications, setShowNotifications] = useState(false);
+  const location = useLocation();
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  const isSearchablePage = ['/stock-incomes', '/purchases', '/suppliers'].includes(location.pathname);
+  const query = searchParams.get('query') ?? '';
+
+  const placeholder =
+    location.pathname === '/suppliers' ? 'Search suppliers...' : 'Search by income ID or supplier...';
+
+  const handleSearchChange = (value: string) => {
+    if (!isSearchablePage) {
+      return;
+    }
+
+    const nextSearchParams = new URLSearchParams(searchParams);
+    const normalizedValue = value.trim();
+
+    if (normalizedValue) {
+      nextSearchParams.set('query', value);
+    } else {
+      nextSearchParams.delete('query');
+    }
+
+    setSearchParams(nextSearchParams, { replace: true });
+  };
 
   return (
     <header className="flex items-center justify-between border-b border-slate-200/80 bg-white/90 px-4 py-3 backdrop-blur sm:px-5 lg:px-6">
@@ -12,7 +38,15 @@ export const Topbar = () => {
       <div className="flex items-center gap-3 sm:gap-4">
         <div className="hidden items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2 text-slate-500 sm:flex sm:min-w-[240px] lg:min-w-[280px]">
           <Search size={16} />
-          <span className="text-sm">Search stock incomes, suppliers...</span>
+          <input
+            type="text"
+            value={isSearchablePage ? query : ''}
+            onChange={(event) => handleSearchChange(event.target.value)}
+            placeholder={isSearchablePage ? placeholder : 'Search is unavailable on this page'}
+            disabled={!isSearchablePage}
+            className="w-full bg-transparent text-sm text-slate-700 outline-none placeholder:text-slate-400 disabled:cursor-not-allowed disabled:text-slate-400"
+            aria-label="Header search"
+          />
         </div>
         <div className="relative">
           <button

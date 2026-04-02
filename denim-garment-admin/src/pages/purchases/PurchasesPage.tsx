@@ -1,5 +1,6 @@
 import { Plus } from 'lucide-react';
 import { FormEvent, useDeferredValue, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useAdminAuth } from '../../app/context/AdminAuthContext';
 import { SearchField } from '../../components/forms/SearchField';
 import { SelectField } from '../../components/forms/SelectField';
@@ -133,7 +134,7 @@ const validateStockIncomeForm = (
 
 export const PurchasesPage = () => {
   const { admin } = useAdminAuth();
-  const [query, setQuery] = useState('');
+  const [searchParams, setSearchParams] = useSearchParams();
   const [status, setStatus] = useState('All Status');
   const [refreshKey, setRefreshKey] = useState(0);
   const [mutating, setMutating] = useState(false);
@@ -144,6 +145,21 @@ export const PurchasesPage = () => {
   const [editingIncome, setEditingIncome] = useState<StockIncome | null>(null);
   const [viewingIncome, setViewingIncome] = useState<StockIncome | null>(null);
   const [deletingIncome, setDeletingIncome] = useState<StockIncome | null>(null);
+  const query = searchParams.get('query') ?? '';
+
+  const setQuery = (value: string) => {
+    const nextSearchParams = new URLSearchParams(searchParams);
+    const normalizedValue = value.trim();
+
+    if (normalizedValue) {
+      nextSearchParams.set('query', value);
+    } else {
+      nextSearchParams.delete('query');
+    }
+
+    setSearchParams(nextSearchParams, { replace: true });
+  };
+
   const deferredQuery = useDeferredValue(query);
   const canDelete = admin?.role === 'admin';
 
