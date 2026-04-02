@@ -38,9 +38,47 @@ type StockIncomeMutationPayload = {
   status: StockIncomeStatus;
 };
 
+const STOCK_INCOME_MIN_MATERIAL_LOTS = 1;
+const STOCK_INCOME_MIN_VALUE = 1000;
+
+const toDateInputValue = (date: Date) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+
+  return `${year}-${month}-${day}`;
+};
+
+const getTodayDate = () => {
+  const now = new Date();
+  return new Date(now.getFullYear(), now.getMonth(), now.getDate());
+};
+
+const parseDateInput = (value: string) => {
+  const match = value.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!match) {
+    return null;
+  }
+
+  const [, year, month, day] = match;
+  const parsed = new Date(Number(year), Number(month) - 1, Number(day));
+
+  if (
+    parsed.getFullYear() !== Number(year) ||
+    parsed.getMonth() !== Number(month) - 1 ||
+    parsed.getDate() !== Number(day)
+  ) {
+    return null;
+  }
+
+  return parsed;
+};
+
+const TODAY_DATE_INPUT_VALUE = toDateInputValue(getTodayDate());
+
 const buildStockIncomeFormValues = (income?: StockIncome, defaultSupplier = ''): StockIncomeFormValues => ({
   supplier: income?.supplier ?? defaultSupplier,
-  receivedDate: income?.receivedDate ?? new Date().toISOString().slice(0, 10),
+  receivedDate: income?.receivedDate ?? TODAY_DATE_INPUT_VALUE,
   materialLots: income ? String(income.materialLots) : '1',
   stockValue: income ? String(income.stockValue) : '1000',
   status: income?.status ?? STOCK_INCOME_STATUSES[0],
@@ -52,6 +90,7 @@ const validateStockIncomeForm = (
 ): StockIncomeMutationPayload | string => {
   const supplier = values.supplier.trim();
   const receivedDate = values.receivedDate.trim();
+  const parsedReceivedDate = parseDateInput(receivedDate);
   const materialLots = Number(values.materialLots);
   const stockValue = Number(values.stockValue);
 
@@ -63,16 +102,20 @@ const validateStockIncomeForm = (
     return 'Please select a valid supplier.';
   }
 
-  if (!receivedDate) {
-    return 'Received date is required.';
+  if (!receivedDate || !parsedReceivedDate) {
+    return 'Received date must be a valid calendar date.';
   }
 
-  if (!Number.isInteger(materialLots) || materialLots <= 0) {
-    return 'Material lots must be a positive whole number.';
+  if (parsedReceivedDate.getTime() > getTodayDate().getTime()) {
+    return 'Received date cannot be in the future.';
   }
 
-  if (!Number.isFinite(stockValue) || stockValue <= 0) {
-    return 'Stock value must be greater than zero.';
+  if (!Number.isInteger(materialLots) || materialLots < STOCK_INCOME_MIN_MATERIAL_LOTS) {
+    return `Material lots must be a whole number of at least ${STOCK_INCOME_MIN_MATERIAL_LOTS}.`;
+  }
+
+  if (!Number.isFinite(stockValue) || stockValue < STOCK_INCOME_MIN_VALUE) {
+    return `Stock value must be at least LKR ${STOCK_INCOME_MIN_VALUE.toLocaleString('en-US')}.`;
   }
 
   if (!STOCK_INCOME_STATUSES.includes(values.status)) {
@@ -388,6 +431,7 @@ export const PurchasesPage = () => {
               onChange={(event) => updateFormField('receivedDate', event.target.value)}
               className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5 text-sm text-slate-900 outline-none"
               disabled={mutating}
+              max={TODAY_DATE_INPUT_VALUE}
               required
             />
           </div>
@@ -410,7 +454,7 @@ export const PurchasesPage = () => {
             <label className="mb-1.5 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Material Lots</label>
             <input
               type="number"
-              min={1}
+              min={STOCK_INCOME_MIN_MATERIAL_LOTS}
               step={1}
               value={formValues.materialLots}
               onChange={(event) => updateFormField('materialLots', event.target.value)}
@@ -418,12 +462,13 @@ export const PurchasesPage = () => {
               disabled={mutating}
               required
             />
+            <p className="mt-1 text-xs text-slate-500">Minimum {STOCK_INCOME_MIN_MATERIAL_LOTS} lot(s) per stock income entry.</p>
           </div>
           <div>
             <label className="mb-1.5 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Stock Value (LKR)</label>
             <input
               type="number"
-              min={1}
+              min={STOCK_INCOME_MIN_VALUE}
               step={1}
               value={formValues.stockValue}
               onChange={(event) => updateFormField('stockValue', event.target.value)}
@@ -431,6 +476,7 @@ export const PurchasesPage = () => {
               disabled={mutating}
               required
             />
+            <p className="mt-1 text-xs text-slate-500">Minimum stock value is LKR {STOCK_INCOME_MIN_VALUE.toLocaleString('en-US')}.</p>
           </div>
           {formError ? <div className="sm:col-span-2 rounded-xl border border-red-200 bg-red-50 px-3.5 py-2 text-sm text-red-700">{formError}</div> : null}
         </form>

@@ -18,6 +18,8 @@ const SUPPLIER_CONTACT_MIN_LENGTH = 7;
 const SUPPLIER_CONTACT_MAX_LENGTH = 30;
 const SUPPLIER_EMAIL_MAX_LENGTH = 254;
 const SUPPLIER_EMAIL_LOCAL_MAX_LENGTH = 64;
+const STOCK_INCOME_MIN_MATERIAL_LOTS = 1;
+const STOCK_INCOME_MIN_VALUE = 1000;
 
 const SUPPLIER_NAME_PATTERN = /^[A-Za-z0-9&'().,/\- ]+$/;
 const SUPPLIER_CONTACT_PATTERN = /^\+?[0-9()\- ]+$/;
@@ -476,15 +478,35 @@ const parseDateInput = (value) => {
 
   const trimmed = value.trim();
 
-  if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
-    const parsed = new Date(`${trimmed}T00:00:00`);
+  const isoMatch = trimmed.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (isoMatch) {
+    const [, year, month, day] = isoMatch;
+    const parsed = new Date(Number(year), Number(month) - 1, Number(day));
+
+    if (
+      parsed.getFullYear() !== Number(year) ||
+      parsed.getMonth() !== Number(month) - 1 ||
+      parsed.getDate() !== Number(day)
+    ) {
+      return null;
+    }
+
     return Number.isNaN(parsed.getTime()) ? null : parsed;
   }
 
   const slashMatch = trimmed.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
   if (slashMatch) {
     const [, month, day, year] = slashMatch;
-    const parsed = new Date(`${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}T00:00:00`);
+    const parsed = new Date(Number(year), Number(month) - 1, Number(day));
+
+    if (
+      parsed.getFullYear() !== Number(year) ||
+      parsed.getMonth() !== Number(month) - 1 ||
+      parsed.getDate() !== Number(day)
+    ) {
+      return null;
+    }
+
     return Number.isNaN(parsed.getTime()) ? null : parsed;
   }
 
@@ -492,28 +514,43 @@ const parseDateInput = (value) => {
   return Number.isNaN(parsed.getTime()) ? null : parsed;
 };
 
-const ensureDate = (value, fieldName) => {
+const toDateStamp = (date) =>
+  date.getFullYear() * 10000 + (date.getMonth() + 1) * 100 + date.getDate();
+
+const toDateInputValue = (date) =>
+  `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+
+const ensureDate = (value, fieldName, { allowFuture = true } = {}) => {
   const parsed = parseDateInput(value);
   if (!parsed) {
     throw new HttpError(400, `${fieldName} must be a valid date.`);
   }
 
-  return value.trim();
+  if (!allowFuture) {
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+    if (toDateStamp(parsed) > toDateStamp(today)) {
+      throw new HttpError(400, `${fieldName} cannot be in the future.`);
+    }
+  }
+
+  return toDateInputValue(parsed);
 };
 
-const ensurePositiveInteger = (value, fieldName) => {
+const ensurePositiveInteger = (value, fieldName, minimum = 1) => {
   const parsed = Number(value);
-  if (!Number.isInteger(parsed) || parsed <= 0) {
-    throw new HttpError(400, `${fieldName} must be a positive whole number.`);
+  if (!Number.isInteger(parsed) || parsed < minimum) {
+    throw new HttpError(400, `${fieldName} must be a whole number of at least ${minimum}.`);
   }
 
   return parsed;
 };
 
-const ensurePositiveNumber = (value, fieldName) => {
+const ensurePositiveNumber = (value, fieldName, minimum = 1) => {
   const parsed = Number(value);
-  if (!Number.isFinite(parsed) || parsed <= 0) {
-    throw new HttpError(400, `${fieldName} must be greater than zero.`);
+  if (!Number.isFinite(parsed) || parsed < minimum) {
+    throw new HttpError(400, `${fieldName} must be at least ${minimum.toLocaleString('en-US')}.`);
   }
 
   return Math.round(parsed);
@@ -669,15 +706,15 @@ const validateStockIncomeInput = (payload, { partial = false } = {}) => {
   }
 
   if (!partial || hasField('receivedDate', 'date')) {
-    result.date = ensureDate(getField('receivedDate', 'date'), 'Received date');
+    result.date = ensureDate(getField('receivedDate', 'date'), 'Received date', { allowFuture: false });
   }
 
   if (!partial || hasField('materialLots', 'items')) {
-    result.items = ensurePositiveInteger(getField('materialLots', 'items'), 'Material lots');
+    result.items = ensurePositiveInteger(getField('materialLots', 'items'), 'Material lots', STOCK_INCOME_MIN_MATERIAL_LOTS);
   }
 
   if (!partial || hasField('stockValue', 'totalValue')) {
-    result.totalValue = ensurePositiveNumber(getField('stockValue', 'totalValue'), 'Stock value');
+    result.totalValue = ensurePositiveNumber(getField('stockValue', 'totalValue'), 'Stock value', STOCK_INCOME_MIN_VALUE);
   }
 
   if (!partial || hasOwn(payload, 'status')) {
